@@ -173,7 +173,53 @@
       </div>
     </div>
 
-    <!-- DELETE CONFIRM MODAL (✅ NO UGLY ALERT) -->
+    <!-- ✅ NEW: PAUSE REASON MODAL -->
+    <div class="modal" id="pauseModal" style="display: none">
+      <div class="modal-card">
+        <div class="modal-head">
+          <h3>Pause Parcel</h3>
+          <button class="modal-x" type="button" data-close="pauseModal">
+            ✕
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p style="margin-bottom: 10px; opacity: 0.85">
+            Add a reason to show customers while tracking is paused.
+          </p>
+
+          <div class="danger-box" style="margin-bottom: 12px">
+            <span>Tracking ID</span>
+            <strong id="pauseParcelId">—</strong>
+          </div>
+
+          <label>Pause message</label>
+          <textarea
+            id="pauseMessage"
+            rows="3"
+            placeholder="e.g. Customs delay, weather issue, address confirmation..."
+            style="
+              width: 100%;
+              padding: 12px;
+              border-radius: 12px;
+              border: 1px solid rgba(0, 0, 0, 0.1);
+              outline: none;
+            "
+          ></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button id="cancelPause" type="button" class="btn-soft">
+            Cancel
+          </button>
+          <button id="confirmPause" type="button" class="btn-primary">
+            Pause Now
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DELETE CONFIRM MODAL -->
     <div class="modal" id="deleteModal" style="display: none">
       <div class="modal-card">
         <div class="modal-head">

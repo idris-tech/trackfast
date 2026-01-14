@@ -41,6 +41,9 @@ const parcelSchema = new mongoose.Schema({
   estimated_delivery: { type: String },
   state: { type: String, enum: ["active", "paused"], default: "active" },
 
+  // ✅ NEW: pause reason message shown to users when paused
+  pause_message: { type: String, default: "" },
+
   createdAt: { type: Date, default: Date.now },
 
   timeline: [
@@ -157,6 +160,7 @@ app.post("/api/parcels", authMiddleware, async (req, res) => {
       status,
       estimated_delivery,
       state: "active",
+      pause_message: "",
       createdAt: now,
       timeline: [{ status, location: origin, time: now }],
     });
@@ -180,10 +184,13 @@ app.get("/api/parcels/:id", async (req, res) => {
 
   if (!parcel) return res.status(404).json({ message: "Parcel not found" });
 
+  // ✅ If paused, return pause message
   if (parcel.state === "paused") {
-    return res
-      .status(403)
-      .json({ message: "Tracking temporarily unavailable" });
+    return res.status(403).json({
+      message: "Tracking temporarily unavailable",
+      pauseMessage:
+        parcel.pause_message || "This parcel is temporarily paused.",
+    });
   }
 
   res.json(parcel);
@@ -261,8 +268,9 @@ app.put("/api/parcels/:id", authMiddleware, async (req, res) => {
 });
 
 // ===== PAUSE/RESUME (PROTECTED) =====
+// ✅ Now supports pauseMessage when pausing
 app.put("/api/parcels/:id/state", authMiddleware, async (req, res) => {
-  const { state } = req.body;
+  const { state, pauseMessage } = req.body;
 
   if (state !== "active" && state !== "paused") {
     return res.status(400).json({ message: "Invalid state" });
@@ -272,8 +280,15 @@ app.put("/api/parcels/:id/state", authMiddleware, async (req, res) => {
   if (!parcel) return res.status(404).json({ message: "Parcel not found" });
 
   parcel.state = state;
-  await parcel.save();
 
+  // If paused, save message. If resumed, clear message.
+  if (state === "paused") {
+    parcel.pause_message = String(pauseMessage || "").trim();
+  } else {
+    parcel.pause_message = "";
+  }
+
+  await parcel.save();
   res.json(parcel);
 });
 

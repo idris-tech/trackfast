@@ -1,5 +1,5 @@
 // =====================
-// TrackFast Admin Dashboard (JWT + Filters + Stats)
+// TrackFast Admin Dashboard (JWT + Filters + Stats + Pause Message)
 // =====================
 
 // AUTO BASE URL
@@ -47,10 +47,20 @@ const editStatus = document.getElementById("editStatus");
 const cancelEdit = document.getElementById("cancelEdit");
 const saveEdit = document.getElementById("saveEdit");
 
+// ✅ Pause modal DOM
+const pauseModal = document.getElementById("pauseModal");
+const pauseParcelIdEl = document.getElementById("pauseParcelId");
+const pauseMessageEl = document.getElementById("pauseMessage");
+const cancelPause = document.getElementById("cancelPause");
+const confirmPause = document.getElementById("confirmPause");
+
 // ===== STATE =====
 let parcels = [];
 let selectedParcelId = null;
 let editParcelId = null;
+
+// pause flow state
+let pauseTargetId = null;
 
 // =====================
 // AUTH HELPERS
@@ -96,9 +106,31 @@ async function apiFetch(url, options = {}) {
     logout("Session expired. Login again.");
     throw new Error(data.message || "Unauthorized");
   }
+  if (!res.ok) {
+    const msg = data?.message || "Request failed";
 
-  if (!res.ok) throw new Error(data.message || "Request failed");
-  return data;
+    // ✅ show pause reason if provided
+    const pauseReason =
+      res.status === 403 && data?.pauseMessage ? data.pauseMessage : "";
+
+    if (result) {
+      result.innerHTML = `
+      <p class="error">❌ ${escapeHtml(msg)}</p>
+      ${
+        pauseReason
+          ? `<div class="tf-empty-sub" style="margin-top:10px; padding:12px; border-radius:12px; background:#fff7ed; color:#9a3412;">
+              <b>Reason:</b> ${escapeHtml(pauseReason)}
+            </div>`
+          : ""
+      }
+    `;
+    }
+
+    const type = res.status === 403 ? "warning" : "error";
+    const title = res.status === 403 ? "Paused" : "Not Found";
+    showToast?.(pauseReason || msg, type, title);
+    return;
+  }
 }
 
 // =====================
@@ -122,12 +154,13 @@ function applyFilters() {
   let list = [...parcels];
 
   const term = (searchInput?.value || "").trim().toLowerCase();
-  if (term)
+  if (term) {
     list = list.filter((p) =>
       String(p.id || "")
         .toLowerCase()
         .includes(term)
     );
+  }
 
   const st = statusFilter?.value || "";
   if (st) list = list.filter((p) => p.status === st);
@@ -138,12 +171,52 @@ function applyFilters() {
   return list;
 }
 
+function isDelivered(p) {
+  return String(p.status || "").toLowerCase() === "delivered";
+}
+
 // =====================
 // FETCH DATA
 // =====================
 async function fetchParcels() {
   parcels = await apiFetch(`${BASE_URL}/api/parcels`);
 }
+
+// =====================
+// MODAL HELPERS
+// =====================
+function openModal(modalEl) {
+  if (!modalEl) return;
+  modalEl.style.display = "flex";
+}
+
+function closeModal(modalEl) {
+  if (!modalEl) return;
+  modalEl.style.display = "none";
+}
+
+// Close by overlay click + data-close buttons
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-close]");
+  if (btn) {
+    const id = btn.getAttribute("data-close");
+    const modal = document.getElementById(id);
+    closeModal(modal);
+    return;
+  }
+
+  if (e.target === updateModal) closeUpdateModal();
+  if (e.target === editModal) closeEditModal();
+  if (e.target === pauseModal) closePauseModal();
+});
+
+// Esc closes
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (updateModal?.style.display === "flex") closeUpdateModal();
+  if (editModal?.style.display === "flex") closeEditModal();
+  if (pauseModal?.style.display === "flex") closePauseModal();
+});
 
 // =====================
 // RENDER TABLE
@@ -158,19 +231,21 @@ function renderDashboard() {
 
   list.forEach((p) => {
     const row = document.createElement("tr");
+    const paused = p.state === "paused";
+    const delivered = isDelivered(p);
 
-    const isPaused = p.state === "paused";
+    const statusText = delivered ? `✅ ${p.status}` : p.status;
 
     row.innerHTML = `
       <td>${p.id}</td>
-      <td>${p.status}</td>
+      <td>${statusText}</td>
       <td>${getCurrentLocation(p)}</td>
       <td>${p.state}</td>
       <td class="actions">
-        <button class="${isPaused ? "resume" : "pause"}">
-          ${isPaused ? "Resume" : "Pause"}
+        <button class="${paused ? "resume" : "pause"}">
+          ${paused ? "Resume" : "Pause"}
         </button>
-        <button class="update" ${isPaused ? "disabled" : ""}>Update</button>
+        <button class="update" ${paused ? "disabled" : ""}>Update</button>
         <button class="edit">Edit</button>
         <button class="delete">Delete</button>
       </td>
@@ -181,16 +256,21 @@ function renderDashboard() {
     // Pause / Resume
     row.querySelector(".pause, .resume").onclick = async () => {
       try {
-        const newState = isPaused ? "active" : "paused";
+        if (paused) {
+          // resume immediately
+          await apiFetch(`${BASE_URL}/api/parcels/${p.id}/state`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ state: "active" }),
+          });
 
-        await apiFetch(`${BASE_URL}/api/parcels/${p.id}/state`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ state: newState }),
-        });
+          window.showToast?.("Parcel resumed", "success", "Updated");
+          await refresh();
+          return;
+        }
 
-        window.showToast?.(`Parcel ${newState}`, "success", "Updated");
-        await refresh();
+        // pause -> open modal to collect reason
+        openPauseModal(p.id);
       } catch (err) {
         window.showToast?.(err.message, "error", "Failed");
       }
@@ -198,7 +278,7 @@ function renderDashboard() {
 
     // Update
     row.querySelector(".update").onclick = () => {
-      if (isPaused) {
+      if (paused) {
         window.showToast?.(
           "Parcel is paused. Resume first.",
           "warning",
@@ -212,13 +292,11 @@ function renderDashboard() {
     // Edit
     row.querySelector(".edit").onclick = () => openEditModal(p);
 
-    // Delete (no ugly confirm)
+    // Delete (simple, no ugly confirm)
     row.querySelector(".delete").onclick = async () => {
       try {
         window.showToast?.("Deleting parcel...", "warning", "Please wait");
-
         await apiFetch(`${BASE_URL}/api/parcels/${p.id}`, { method: "DELETE" });
-
         window.showToast?.("Parcel deleted", "success", "Done");
         await refresh();
       } catch (err) {
@@ -227,6 +305,56 @@ function renderDashboard() {
     };
   });
 }
+
+// =====================
+// PAUSE MODAL (✅ NEW)
+// =====================
+function openPauseModal(parcelId) {
+  pauseTargetId = parcelId;
+  if (pauseParcelIdEl) pauseParcelIdEl.textContent = parcelId;
+  if (pauseMessageEl) pauseMessageEl.value = "";
+  openModal(pauseModal);
+  setTimeout(() => pauseMessageEl?.focus(), 50);
+}
+
+function closePauseModal() {
+  pauseTargetId = null;
+  if (pauseMessageEl) pauseMessageEl.value = "";
+  closeModal(pauseModal);
+}
+
+cancelPause?.addEventListener("click", closePauseModal);
+
+confirmPause?.addEventListener("click", async () => {
+  if (!pauseTargetId) return;
+
+  const msg = String(pauseMessageEl?.value || "").trim();
+
+  if (!msg) {
+    window.showToast?.("Please write a pause reason", "warning", "Required");
+    return;
+  }
+
+  try {
+    confirmPause.disabled = true;
+    confirmPause.textContent = "Pausing...";
+
+    await apiFetch(`${BASE_URL}/api/parcels/${pauseTargetId}/state`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state: "paused", pauseMessage: msg }),
+    });
+
+    closePauseModal();
+    window.showToast?.("Parcel paused with message", "success", "Done");
+    await refresh();
+  } catch (err) {
+    window.showToast?.(err.message, "error", "Pause Failed");
+  } finally {
+    confirmPause.disabled = false;
+    confirmPause.textContent = "Pause Now";
+  }
+});
 
 // =====================
 // UPDATE MODAL
@@ -245,20 +373,17 @@ function openUpdateModal(parcel) {
 
   updateLocation.value = getCurrentLocation(parcel);
 
-  updateModal.style.display = "flex";
+  openModal(updateModal);
   updateLocation?.focus();
 }
 
 function closeUpdateModal() {
   selectedParcelId = null;
-  updateModal.style.display = "none";
-  updateLocation.value = "";
+  if (updateLocation) updateLocation.value = "";
+  closeModal(updateModal);
 }
 
 cancelUpdate?.addEventListener("click", closeUpdateModal);
-updateModal?.addEventListener("click", (e) => {
-  if (e.target === updateModal) closeUpdateModal();
-});
 
 saveUpdate?.addEventListener("click", async () => {
   try {
@@ -307,19 +432,16 @@ function openEditModal(p) {
     )
     .join("");
 
-  editModal.style.display = "flex";
+  openModal(editModal);
   editSender?.focus();
 }
 
 function closeEditModal() {
   editParcelId = null;
-  editModal.style.display = "none";
+  closeModal(editModal);
 }
 
 cancelEdit?.addEventListener("click", closeEditModal);
-editModal?.addEventListener("click", (e) => {
-  if (e.target === editModal) closeEditModal();
-});
 
 saveEdit?.addEventListener("click", async () => {
   try {
@@ -369,7 +491,7 @@ async function refresh() {
   renderDashboard();
 }
 
-// IMPORTANT: filters must listen properly
+// Filters listeners
 searchInput?.addEventListener("input", renderDashboard);
 statusFilter?.addEventListener("change", renderDashboard);
 stateFilter?.addEventListener("change", renderDashboard);

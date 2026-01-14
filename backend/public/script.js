@@ -71,6 +71,10 @@ function getProgress(status) {
   return Math.round(((idx + 1) / steps.length) * 100);
 }
 
+function isDelivered(status = "") {
+  return String(status).toLowerCase() === "delivered";
+}
+
 function statusTone(status = "") {
   const s = status.toLowerCase();
   if (s.includes("delivered")) return "success";
@@ -131,14 +135,44 @@ async function trackParcel() {
     hideLoader();
     showResult();
 
+    // ✅ PAUSED: backend returns 403 + pauseMessage (we'll add in server.js)
+    if (res.status === 403) {
+      const pauseMsg =
+        data?.pauseMessage || data?.pause_message || data?.message || "Paused";
+
+      if (result) {
+        result.innerHTML = `
+          <div class="tf-wrap">
+            <div class="tf-card">
+              <div class="tf-head">
+                <div>
+                  <div class="tf-kicker">Tracking ID</div>
+                  <div class="tf-id">${escapeHtml(trackingId)}</div>
+                </div>
+                <div class="tf-head-right">
+                  <span class="tf-badge warning">⏸️ Paused</span>
+                  <div class="tf-sub">Tracking is temporarily unavailable</div>
+                </div>
+              </div>
+
+              <div class="tf-pause">
+                <div class="tf-pause-title">Reason from admin</div>
+                <div class="tf-pause-msg">${escapeHtml(pauseMsg)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      showToast?.(pauseMsg, "warning", "Paused");
+      return;
+    }
+
     if (!res.ok) {
       const msg = data?.message || "Request failed";
       if (result)
         result.innerHTML = `<p class="error">❌ ${escapeHtml(msg)}</p>`;
-
-      const type = res.status === 403 ? "warning" : "error";
-      const title = res.status === 403 ? "Paused" : "Not Found";
-      showToast?.(msg, type, title);
+      showToast?.(msg, "error", "Failed");
       return;
     }
 
@@ -163,7 +197,7 @@ if (trackingInput) {
 }
 
 // =====================
-// PREMIUM RENDER UI
+// PREMIUM TRACKING UI
 // =====================
 function renderParcel(parcel) {
   const id = escapeHtml(parcel.id || "—");
@@ -171,6 +205,8 @@ function renderParcel(parcel) {
   const status = escapeHtml(statusRaw);
   const tone = statusTone(statusRaw);
   const progress = getProgress(statusRaw);
+
+  const delivered = isDelivered(statusRaw);
 
   const origin = escapeHtml(parcel.origin || "—");
   const destination = escapeHtml(parcel.destination || "—");
@@ -199,7 +235,7 @@ function renderParcel(parcel) {
       const current = activeIndex === i;
       return `
         <div class="tf-step ${done ? "done" : ""} ${current ? "current" : ""}">
-          <span class="tf-step-dot"></span>
+          <span class="tf-step-dot">${done ? "✓" : ""}</span>
           <span class="tf-step-label">${escapeHtml(s)}</span>
         </div>
       `;
@@ -230,6 +266,11 @@ function renderParcel(parcel) {
                       )}</span>
                       <span>${tStatus}</span>
                       ${isLatest ? `<span class="tf-chip">Latest</span>` : ""}
+                      ${
+                        String(t.status || "").toLowerCase() === "delivered"
+                          ? `<span class="tf-chip done">Delivered ✓</span>`
+                          : ""
+                      }
                     </div>
                     <div class="tf-event-time">${escapeHtml(tTime)}</div>
                   </div>
@@ -252,7 +293,7 @@ function renderParcel(parcel) {
 
   result.innerHTML = `
     <div class="tf-wrap">
-      <div class="tf-card">
+      <div class="tf-card ${delivered ? "delivered" : ""}">
         <div class="tf-head">
           <div>
             <div class="tf-kicker">Tracking ID</div>
@@ -262,10 +303,20 @@ function renderParcel(parcel) {
           <div class="tf-head-right">
             <span class="tf-badge ${tone}">
               ${iconForStatus(statusRaw)} ${status}
+              ${delivered ? `<span class="tf-tick">✓</span>` : ""}
             </span>
             <div class="tf-sub">Created: <b>${escapeHtml(created)}</b></div>
           </div>
         </div>
+
+        ${
+          delivered
+            ? `<div class="tf-banner">
+                <div class="tf-banner-title">Delivered successfully</div>
+                <div class="tf-banner-sub">This parcel has been completed ✅</div>
+              </div>`
+            : ""
+        }
 
         <div class="tf-route">
           <div class="tf-route-box">
