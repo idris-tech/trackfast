@@ -1,0 +1,570 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
+    url("adm.jpg");
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+}
+
+/* NAVBAR */
+.navbar {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  padding: 15px 40px;
+  display: flex;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: bold;
+  color: #00ffbf;
+}
+
+.nav-links {
+  display: flex;
+  list-style: none;
+  gap: 25px;
+}
+
+.nav-links a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.nav-links a:hover {
+  color: #00ffbf;
+}
+
+/* MAIN */
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 100px;
+}
+
+.card > p {
+  padding: 20px;
+}
+
+/* CARD */
+.card {
+  max-width: 520px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(14px);
+  border-radius: 20px;
+  padding: 35px;
+  text-align: center;
+}
+
+/* INPUT */
+.track-box {
+  display: flex;
+  gap: 10px;
+}
+
+input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+}
+
+button {
+  padding: 12px 20px;
+  border-radius: 10px;
+  background: #00c896;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+/* LOADER */
+.loader {
+  display: none;
+  margin: 20px auto;
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #00ffbf;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* RESULT */
+.result {
+  display: none;
+  margin-top: 20px;
+  text-align: left;
+}
+
+/* PROGRESS BAR */
+.progress {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #00ffbf;
+  width: 0%;
+}
+
+/* MODAL */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: black;
+  background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
+    url("adm.jpg");
+  background-size: cover;
+  background-position: center;
+  background: blur(20px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px);
+  padding: 40px;
+  border-radius: 15px;
+  width: 300px;
+  text-align: center;
+}
+
+.modal-content h2 {
+  padding-bottom: 15px;
+}
+.modal-content input {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+/* ===== TRACKING RESULT UI ===== */
+
+.tracking-ui {
+  margin-top: 20px;
+  background: #ffffff;
+  color: #222;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  text-align: left;
+}
+
+.tracking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.tracking-id {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tracking-status {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #0d6efd;
+  color: #fff;
+}
+
+.tracking-route {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.tracking-route small {
+  color: #777;
+}
+
+.tracking-route p {
+  font-weight: 600;
+}
+
+.arrow {
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.tracking-progress .bar {
+  height: 6px;
+  background: #ddd;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tracking-progress .fill {
+  height: 100%;
+  background: #0d6efd;
+  transition: width 0.4s ease;
+}
+
+.tracking-progress small {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #555;
+}
+
+.tracking-history {
+  margin-top: 20px;
+}
+
+.tracking-history h4 {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.history-item {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.history-item .dot {
+  width: 10px;
+  height: 10px;
+  background: #0d6efd;
+  border-radius: 50%;
+  margin-top: 6px;
+}
+
+.history-item small {
+  display: block;
+  color: #666;
+}
+
+.no-history {
+  margin-top: 15px;
+  font-size: 13px;
+  color: #777;
+}
+/* Estimated Delivery */
+.estimated {
+  margin: 15px 0;
+  padding: 10px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.estimated small {
+  color: #777;
+  font-size: 12px;
+}
+
+.estimated p {
+  font-weight: 600;
+}
+
+/* Shipment Details */
+.shipment-details {
+  margin-top: 20px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.shipment-details h4 {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.detail-row span:first-child {
+  color: #666;
+}
+
+/* ===== TRACKING RESULT CARD ===== */
+.tracking-ui {
+  background: linear-gradient(180deg, #ffffff, #f9fafb);
+  border-radius: 18px;
+  padding: 24px;
+  margin-top: 20px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.12);
+  animation: fadeUp 0.4s ease;
+}
+
+/* HEADER */
+.tracking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.tracking-id {
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+}
+
+.tracking-status {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: white;
+}
+
+/* ROUTE */
+.tracking-route {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  background: #f1f5f9;
+  padding: 14px;
+  border-radius: 14px;
+  margin-bottom: 18px;
+}
+
+.tracking-route small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.tracking-route p {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.tracking-route .arrow {
+  font-size: 20px;
+  font-weight: bold;
+  color: #3b82f6;
+}
+
+/* PROGRESS */
+.tracking-progress {
+  margin-bottom: 20px;
+}
+
+.tracking-progress .bar {
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tracking-progress .fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  transition: width 0.6s ease;
+  border-radius: 10px;
+}
+
+.tracking-progress small {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #475569;
+}
+
+/* SHIPMENT DETAILS */
+.shipment-details {
+  margin-top: 18px;
+}
+
+.shipment-details h4 {
+  margin-bottom: 10px;
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed #e5e7eb;
+  font-size: 13px;
+}
+
+.detail-row span:first-child {
+  color: #64748b;
+}
+
+.detail-row span:last-child {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* TRACKING HISTORY */
+.tracking-history {
+  margin-top: 20px;
+}
+
+.tracking-history h4 {
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.history-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 0;
+}
+
+.history-item .dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  background: #22c55e;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.history-item strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.history-item small {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ERROR */
+.result .error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+/* ANIMATION */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* ===== ADVANCED TRACKING HISTORY ===== */
+.tracking-history {
+  margin-top: 26px;
+  position: relative;
+}
+
+.tracking-history h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 16px;
+}
+
+/* Vertical line */
+.tracking-history::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 46px;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #22c55e, rgba(34, 197, 94, 0.2));
+}
+
+/* Item */
+.history-item {
+  display: flex;
+  gap: 16px;
+  padding: 14px 0;
+  position: relative;
+}
+
+/* Dot */
+.history-item .dot {
+  width: 18px;
+  height: 18px;
+  background: #22c55e;
+  border-radius: 50%;
+  border: 4px solid #ecfdf5;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+/* Content */
+.history-item div {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 12px 14px;
+  width: 100%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Hover */
+.history-item:hover div {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+}
+
+/* Status */
+.history-item strong {
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #065f46;
+  margin-bottom: 4px;
+}
+
+/* Meta */
+.history-item small {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Latest update highlight */
+.history-item:first-of-type .dot {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.2);
+}
+
+.history-item:first-of-type strong {
+  color: #1d4ed8;
+}

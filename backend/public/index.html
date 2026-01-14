@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Parcel Tracking</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="toast.css" />
+  </head>
+  <body>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+      <div class="logo">TrackFast</div>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="index.html">Track</a></li>
+        <li><a href="#" id="adminBtn">Admin</a></li>
+      </ul>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="container" id="track">
+      <div class="card">
+        <h1>Parcel Tracking</h1>
+
+        <p class="subtitle">
+          Experience the next generation of parcel tracking.<br />
+          Fast, reliable, and transparent delivery solutions for modern
+          businesses.
+        </p>
+
+        <div class="track-box">
+          <input
+            type="text"
+            id="trackingInput"
+            placeholder="Enter Tracking ID"
+          />
+          <button id="trackBtn">Track</button>
+        </div>
+
+        <!-- LOADING -->
+        <div class="loader" id="loader"></div>
+
+        <!-- RESULT -->
+        <div class="result" id="result"></div>
+      </div>
+    </main>
+
+    <!-- ADMIN LOGIN MODAL -->
+    <div class="modal" id="adminModal">
+      <div class="modal-content">
+        <h2>Admin Login</h2>
+
+        <input id="adminEmail" type="email" placeholder="Email" />
+        <input id="adminPassword" type="password" placeholder="Password" />
+
+        <button id="adminLoginBtn" type="button">Login</button>
+      </div>
+    </div>
+
+    <div id="toast-root"></div>
+    <script src="toast.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

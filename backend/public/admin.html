@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard</title>
+
+    <link rel="stylesheet" href="admin.css" />
+    <link rel="stylesheet" href="toast.css" />
+
+    <script>
+      if (!localStorage.getItem("adminToken")) {
+        window.location.replace("index.html");
+      }
+    </script>
+  </head>
+
+  <body>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <h2>TrackFast</h2>
+      <ul>
+        <li onclick="window.location.href='admin.html'">Dashboard</li>
+        <li onclick="window.location.href='admin.html'">Parcels</li>
+        <li onclick="window.location.href='parcel.html'">Create Parcel</li>
+
+        <li
+          onclick="localStorage.removeItem('adminToken'); window.location.href='index.html'"
+        >
+          Logout
+        </li>
+      </ul>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <h1>Admin Dashboard</h1>
+
+      <!-- STATS -->
+      <div class="stats">
+        <div class="card">
+          <h3>Total Parcels</h3>
+          <p id="total">0</p>
+        </div>
+        <div class="card">
+          <h3>Active</h3>
+          <p id="active">0</p>
+        </div>
+        <div class="card">
+          <h3>Paused</h3>
+          <p id="paused">0</p>
+        </div>
+        <div class="card">
+          <h3>Delivered</h3>
+          <p id="delivered">0</p>
+        </div>
+      </div>
+
+      <div class="filters">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search by Tracking ID..."
+        />
+
+        <select id="statusFilter">
+          <option value="">All Statuses</option>
+          <option>Order Received</option>
+          <option>Processing</option>
+          <option>Dispatched</option>
+          <option>In Transit</option>
+          <option>Out for Delivery</option>
+          <option>Delivered</option>
+        </select>
+
+        <select id="stateFilter">
+          <option value="">All States</option>
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
+        </select>
+      </div>
+
+      <!-- TABLE -->
+      <div class="table-box">
+        <h2>Parcels</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Tracking ID</th>
+              <th>Status</th>
+              <th>Location</th>
+              <th>State</th>
+              <th style="width: 320px">Action</th>
+            </tr>
+          </thead>
+          <tbody id="parcelTable"></tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- UPDATE MODAL -->
+    <div class="modal" id="updateModal" style="display: none">
+      <div class="modal-card">
+        <div class="modal-head">
+          <h3>Add Tracking Update</h3>
+          <button class="modal-x" type="button" data-close="updateModal">
+            ✕
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <label>Status</label>
+          <select id="updateStatus"></select>
+
+          <label>Location</label>
+          <input
+            id="updateLocation"
+            type="text"
+            placeholder="e.g. Accra, Ghana"
+          />
+        </div>
+
+        <div class="modal-actions">
+          <button id="cancelUpdate" type="button" class="btn-soft">
+            Cancel
+          </button>
+          <button id="saveUpdate" type="button" class="btn-primary">
+            Save Update
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDIT MODAL -->
+    <div class="modal" id="editModal" style="display: none">
+      <div class="modal-card modal-card-scroll">
+        <div class="modal-head">
+          <h3>Edit Parcel</h3>
+          <button class="modal-x" type="button" data-close="editModal">
+            ✕
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <label>Sender</label>
+          <input id="editSender" type="text" placeholder="Sender name" />
+
+          <label>Receiver</label>
+          <input id="editReceiver" type="text" placeholder="Receiver name" />
+
+          <label>Contact</label>
+          <input id="editContact" type="text" placeholder="Phone / Email" />
+
+          <label>Origin</label>
+          <input id="editOrigin" type="text" placeholder="Origin" />
+
+          <label>Destination</label>
+          <input id="editDestination" type="text" placeholder="Destination" />
+
+          <label>Estimated Delivery</label>
+          <input id="editEstimated" type="date" />
+
+          <label>Status</label>
+          <select id="editStatus"></select>
+        </div>
+
+        <div class="modal-actions">
+          <button id="cancelEdit" type="button" class="btn-soft">Cancel</button>
+          <button id="saveEdit" type="button" class="btn-primary">
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DELETE CONFIRM MODAL (✅ NO UGLY ALERT) -->
+    <div class="modal" id="deleteModal" style="display: none">
+      <div class="modal-card">
+        <div class="modal-head">
+          <h3>Delete Parcel</h3>
+          <button class="modal-x" type="button" data-close="deleteModal">
+            ✕
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p class="danger-text">This action cannot be undone.</p>
+          <div class="danger-box">
+            <span>Tracking ID</span>
+            <strong id="deleteParcelId">—</strong>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="cancelDelete" type="button" class="btn-soft">
+            Cancel
+          </button>
+          <button id="confirmDelete" type="button" class="btn-danger">
+            Yes, Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast-root"></div>
+    <script src="toast.js"></script>
+    <script src="admin.js"></script>
+  </body>
+</html>
