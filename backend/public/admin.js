@@ -1,11 +1,13 @@
 // =====================
-// TrackFast Admin Dashboard (JWT + Filters + Stats + Pause Message)
+// TrackFast Admin Dashboard (JWT + Filters + Stats + Pause Reason)
 // =====================
 
-// AUTO BASE URL
 const BASE_URL = window.location.hostname.includes("localhost")
   ? "http://localhost:5000"
   : "https://trackfast.onrender.com";
+
+// ✅ Always build API URLs from BASE_URL
+const API = (path) => `${BASE_URL}${path}`;
 
 const statuses = [
   "Order Received",
@@ -22,20 +24,19 @@ const statusFilter = document.getElementById("statusFilter");
 const stateFilter = document.getElementById("stateFilter");
 const table = document.getElementById("parcelTable");
 
-// Stats DOM
 const totalEl = document.getElementById("total");
 const activeEl = document.getElementById("active");
 const pausedEl = document.getElementById("paused");
 const deliveredEl = document.getElementById("delivered");
 
-// Update modal DOM
+// Update modal
 const updateModal = document.getElementById("updateModal");
 const updateStatus = document.getElementById("updateStatus");
 const updateLocation = document.getElementById("updateLocation");
 const cancelUpdate = document.getElementById("cancelUpdate");
 const saveUpdate = document.getElementById("saveUpdate");
 
-// Edit modal DOM
+// Edit modal
 const editModal = document.getElementById("editModal");
 const editSender = document.getElementById("editSender");
 const editReceiver = document.getElementById("editReceiver");
@@ -47,10 +48,16 @@ const editStatus = document.getElementById("editStatus");
 const cancelEdit = document.getElementById("cancelEdit");
 const saveEdit = document.getElementById("saveEdit");
 
-// ✅ Pause modal DOM
+// Delete modal
+const deleteModal = document.getElementById("deleteModal");
+const deleteParcelIdEl = document.getElementById("deleteParcelId");
+const cancelDelete = document.getElementById("cancelDelete");
+const confirmDelete = document.getElementById("confirmDelete");
+
+// Pause modal
 const pauseModal = document.getElementById("pauseModal");
 const pauseParcelIdEl = document.getElementById("pauseParcelId");
-const pauseMessageEl = document.getElementById("pauseMessage");
+const pauseReasonEl = document.getElementById("pauseReason");
 const cancelPause = document.getElementById("cancelPause");
 const confirmPause = document.getElementById("confirmPause");
 
@@ -58,12 +65,11 @@ const confirmPause = document.getElementById("confirmPause");
 let parcels = [];
 let selectedParcelId = null;
 let editParcelId = null;
-
-// pause flow state
-let pauseTargetId = null;
+let pendingDeleteId = null;
+let pendingPauseId = null;
 
 // =====================
-// AUTH HELPERS
+// AUTH
 // =====================
 function getToken() {
   return localStorage.getItem("adminToken");
@@ -89,10 +95,11 @@ async function safeJson(res) {
   return { message: await res.text() };
 }
 
-async function apiFetch(url, options = {}) {
+// ✅ All admin requests go through here
+async function apiFetch(path, options = {}) {
   if (!requireAuthOrRedirect()) throw new Error("Not authenticated");
 
-  const res = await fetch(url, {
+  const res = await fetch(API(path), {
     ...options,
     headers: {
       ...(options.headers || {}),
@@ -106,35 +113,18 @@ async function apiFetch(url, options = {}) {
     logout("Session expired. Login again.");
     throw new Error(data.message || "Unauthorized");
   }
+
   if (!res.ok) {
-    const msg = data?.message || "Request failed";
-
-    // ✅ show pause reason if provided
-    const pauseReason =
-      res.status === 403 && data?.pauseMessage ? data.pauseMessage : "";
-
-    if (result) {
-      result.innerHTML = `
-      <p class="error">❌ ${escapeHtml(msg)}</p>
-      ${
-        pauseReason
-          ? `<div class="tf-empty-sub" style="margin-top:10px; padding:12px; border-radius:12px; background:#fff7ed; color:#9a3412;">
-              <b>Reason:</b> ${escapeHtml(pauseReason)}
-            </div>`
-          : ""
-      }
-    `;
-    }
-
-    const type = res.status === 403 ? "warning" : "error";
-    const title = res.status === 403 ? "Paused" : "Not Found";
-    showToast?.(pauseReason || msg, type, title);
-    return;
+    // helpful debug
+    console.error("API ERROR:", res.status, path, data);
+    throw new Error(data.message || "Request failed");
   }
+
+  return data;
 }
 
 // =====================
-// HELPERS (LOCATION, STATS, FILTERS)
+// HELPERS
 // =====================
 function getCurrentLocation(p) {
   return p.timeline?.length
@@ -171,52 +161,47 @@ function applyFilters() {
   return list;
 }
 
-function isDelivered(p) {
-  return String(p.status || "").toLowerCase() === "delivered";
+// =====================
+// MODALS
+// =====================
+function openModal(el) {
+  if (el) el.style.display = "flex";
+}
+function closeModal(el) {
+  if (el) el.style.display = "none";
 }
 
-// =====================
-// FETCH DATA
-// =====================
-async function fetchParcels() {
-  parcels = await apiFetch(`${BASE_URL}/api/parcels`);
-}
-
-// =====================
-// MODAL HELPERS
-// =====================
-function openModal(modalEl) {
-  if (!modalEl) return;
-  modalEl.style.display = "flex";
-}
-
-function closeModal(modalEl) {
-  if (!modalEl) return;
-  modalEl.style.display = "none";
-}
-
-// Close by overlay click + data-close buttons
+// close buttons with data-close
 document.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-close]");
-  if (btn) {
-    const id = btn.getAttribute("data-close");
-    const modal = document.getElementById(id);
-    closeModal(modal);
-    return;
-  }
-
-  if (e.target === updateModal) closeUpdateModal();
-  if (e.target === editModal) closeEditModal();
-  if (e.target === pauseModal) closePauseModal();
+  if (!btn) return;
+  const id = btn.getAttribute("data-close");
+  closeModal(document.getElementById(id));
 });
 
-// Esc closes
+// click outside closes
+[updateModal, editModal, deleteModal, pauseModal].forEach((m) => {
+  m?.addEventListener("click", (e) => {
+    if (e.target === m) closeModal(m);
+  });
+});
+
+// ESC closes
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
-  if (updateModal?.style.display === "flex") closeUpdateModal();
-  if (editModal?.style.display === "flex") closeEditModal();
-  if (pauseModal?.style.display === "flex") closePauseModal();
+  [updateModal, editModal, deleteModal, pauseModal].forEach((m) =>
+    closeModal(m)
+  );
 });
+
+// =====================
+// FETCH
+// =====================
+async function fetchParcels() {
+  // ✅ this is the only place we load dashboard data
+  parcels = await apiFetch("/api/parcels");
+  console.log("Loaded parcels:", parcels.length); // debug
+}
 
 // =====================
 // RENDER TABLE
@@ -231,21 +216,19 @@ function renderDashboard() {
 
   list.forEach((p) => {
     const row = document.createElement("tr");
-    const paused = p.state === "paused";
-    const delivered = isDelivered(p);
-
-    const statusText = delivered ? `✅ ${p.status}` : p.status;
+    const isPaused = p.state === "paused";
+    const isDelivered = p.status === "Delivered";
 
     row.innerHTML = `
       <td>${p.id}</td>
-      <td>${statusText}</td>
+      <td>${isDelivered ? "✅ Delivered" : p.status}</td>
       <td>${getCurrentLocation(p)}</td>
       <td>${p.state}</td>
       <td class="actions">
-        <button class="${paused ? "resume" : "pause"}">
-          ${paused ? "Resume" : "Pause"}
+        <button class="${isPaused ? "resume" : "pause"}">
+          ${isPaused ? "Resume" : "Pause"}
         </button>
-        <button class="update" ${paused ? "disabled" : ""}>Update</button>
+        <button class="update" ${isPaused ? "disabled" : ""}>Update</button>
         <button class="edit">Edit</button>
         <button class="delete">Delete</button>
       </td>
@@ -256,21 +239,23 @@ function renderDashboard() {
     // Pause / Resume
     row.querySelector(".pause, .resume").onclick = async () => {
       try {
-        if (paused) {
-          // resume immediately
-          await apiFetch(`${BASE_URL}/api/parcels/${p.id}/state`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ state: "active" }),
-          });
-
-          window.showToast?.("Parcel resumed", "success", "Updated");
-          await refresh();
+        if (!isPaused) {
+          pendingPauseId = p.id;
+          pauseParcelIdEl && (pauseParcelIdEl.textContent = p.id);
+          pauseReasonEl && (pauseReasonEl.value = "");
+          openModal(pauseModal);
+          setTimeout(() => pauseReasonEl?.focus(), 50);
           return;
         }
 
-        // pause -> open modal to collect reason
-        openPauseModal(p.id);
+        await apiFetch(`/api/parcels/${p.id}/state`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ state: "active" }),
+        });
+
+        window.showToast?.("Parcel resumed", "success", "Updated");
+        await refresh();
       } catch (err) {
         window.showToast?.(err.message, "error", "Failed");
       }
@@ -278,7 +263,7 @@ function renderDashboard() {
 
     // Update
     row.querySelector(".update").onclick = () => {
-      if (paused) {
+      if (isPaused) {
         window.showToast?.(
           "Parcel is paused. Resume first.",
           "warning",
@@ -292,67 +277,58 @@ function renderDashboard() {
     // Edit
     row.querySelector(".edit").onclick = () => openEditModal(p);
 
-    // Delete (simple, no ugly confirm)
-    row.querySelector(".delete").onclick = async () => {
-      try {
-        window.showToast?.("Deleting parcel...", "warning", "Please wait");
-        await apiFetch(`${BASE_URL}/api/parcels/${p.id}`, { method: "DELETE" });
-        window.showToast?.("Parcel deleted", "success", "Done");
-        await refresh();
-      } catch (err) {
-        window.showToast?.(err.message, "error", "Delete Failed");
+    // Delete
+    row.querySelector(".delete").onclick = () => {
+      pendingDeleteId = p.id;
+      if (deleteModal && deleteParcelIdEl) {
+        deleteParcelIdEl.textContent = p.id;
+        openModal(deleteModal);
+      } else {
+        doDelete(p.id);
       }
     };
   });
 }
 
 // =====================
-// PAUSE MODAL (✅ NEW)
+// PAUSE MODAL
 // =====================
-function openPauseModal(parcelId) {
-  pauseTargetId = parcelId;
-  if (pauseParcelIdEl) pauseParcelIdEl.textContent = parcelId;
-  if (pauseMessageEl) pauseMessageEl.value = "";
-  openModal(pauseModal);
-  setTimeout(() => pauseMessageEl?.focus(), 50);
-}
-
-function closePauseModal() {
-  pauseTargetId = null;
-  if (pauseMessageEl) pauseMessageEl.value = "";
+cancelPause?.addEventListener("click", () => {
+  pendingPauseId = null;
   closeModal(pauseModal);
-}
-
-cancelPause?.addEventListener("click", closePauseModal);
+});
 
 confirmPause?.addEventListener("click", async () => {
-  if (!pauseTargetId) return;
-
-  const msg = String(pauseMessageEl?.value || "").trim();
-
-  if (!msg) {
-    window.showToast?.("Please write a pause reason", "warning", "Required");
-    return;
-  }
-
   try {
+    if (!pendingPauseId) return;
+
+    const reason = String(pauseReasonEl?.value || "").trim();
+    if (!reason) {
+      window.showToast?.("Please enter a pause reason", "warning", "Required");
+      pauseReasonEl?.focus();
+      return;
+    }
+
     confirmPause.disabled = true;
     confirmPause.textContent = "Pausing...";
 
-    await apiFetch(`${BASE_URL}/api/parcels/${pauseTargetId}/state`, {
+    await apiFetch(`/api/parcels/${pendingPauseId}/state`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ state: "paused", pauseMessage: msg }),
+      body: JSON.stringify({ state: "paused", message: reason }),
     });
 
-    closePauseModal();
-    window.showToast?.("Parcel paused with message", "success", "Done");
+    window.showToast?.("Parcel paused", "success", "Updated");
+    pendingPauseId = null;
+    closeModal(pauseModal);
     await refresh();
   } catch (err) {
-    window.showToast?.(err.message, "error", "Pause Failed");
+    window.showToast?.(err.message, "error", "Failed");
   } finally {
-    confirmPause.disabled = false;
-    confirmPause.textContent = "Pause Now";
+    if (confirmPause) {
+      confirmPause.disabled = false;
+      confirmPause.textContent = "Pause";
+    }
   }
 });
 
@@ -379,8 +355,8 @@ function openUpdateModal(parcel) {
 
 function closeUpdateModal() {
   selectedParcelId = null;
-  if (updateLocation) updateLocation.value = "";
   closeModal(updateModal);
+  if (updateLocation) updateLocation.value = "";
 }
 
 cancelUpdate?.addEventListener("click", closeUpdateModal);
@@ -393,13 +369,10 @@ saveUpdate?.addEventListener("click", async () => {
       return;
     }
 
-    await apiFetch(`${BASE_URL}/api/parcels/${selectedParcelId}/status`, {
+    await apiFetch(`/api/parcels/${selectedParcelId}/status`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status: updateStatus.value,
-        location: loc,
-      }),
+      body: JSON.stringify({ status: updateStatus.value, location: loc }),
     });
 
     closeUpdateModal();
@@ -469,7 +442,7 @@ saveEdit?.addEventListener("click", async () => {
       return;
     }
 
-    await apiFetch(`${BASE_URL}/api/parcels/${editParcelId}`, {
+    await apiFetch(`/api/parcels/${editParcelId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -484,14 +457,53 @@ saveEdit?.addEventListener("click", async () => {
 });
 
 // =====================
+// DELETE
+// =====================
+async function doDelete(id) {
+  try {
+    window.showToast?.("Deleting parcel...", "warning", "Please wait");
+    await apiFetch(`/api/parcels/${id}`, { method: "DELETE" });
+    window.showToast?.("Parcel deleted", "success", "Done");
+    await refresh();
+  } catch (err) {
+    window.showToast?.(err.message, "error", "Delete Failed");
+  }
+}
+
+cancelDelete?.addEventListener("click", () => {
+  pendingDeleteId = null;
+  closeModal(deleteModal);
+});
+
+confirmDelete?.addEventListener("click", async () => {
+  if (!pendingDeleteId) return;
+  confirmDelete.disabled = true;
+  confirmDelete.textContent = "Deleting...";
+  await doDelete(pendingDeleteId);
+  pendingDeleteId = null;
+  confirmDelete.disabled = false;
+  confirmDelete.textContent = "Yes, Delete";
+  closeModal(deleteModal);
+});
+
+// =====================
 // REFRESH
 // =====================
 async function refresh() {
-  await fetchParcels();
-  renderDashboard();
+  try {
+    await fetchParcels();
+    renderDashboard();
+  } catch (err) {
+    console.error("DASHBOARD LOAD FAIL:", err);
+    window.showToast?.(
+      err.message || "Failed to load parcels",
+      "error",
+      "Dashboard"
+    );
+  }
 }
 
-// Filters listeners
+// Filters
 searchInput?.addEventListener("input", renderDashboard);
 statusFilter?.addEventListener("change", renderDashboard);
 stateFilter?.addEventListener("change", renderDashboard);

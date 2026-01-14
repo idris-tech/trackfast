@@ -301,10 +301,15 @@ function renderParcel(parcel) {
           </div>
 
           <div class="tf-head-right">
-            <span class="tf-badge ${tone}">
-              ${iconForStatus(statusRaw)} ${status}
-              ${delivered ? `<span class="tf-tick">✓</span>` : ""}
-            </span>
+            <span class="tf-badge ${tone} ${
+    statusRaw === "Delivered" ? "delivered" : ""
+  }">
+  ${
+    statusRaw === "Delivered"
+      ? `<span class="tf-check">✓</span> Delivered`
+      : `${iconForStatus(statusRaw)} ${status}`
+  }
+</span>
             <div class="tf-sub">Created: <b>${escapeHtml(created)}</b></div>
           </div>
         </div>
@@ -312,8 +317,6 @@ function renderParcel(parcel) {
         ${
           delivered
             ? `<div class="tf-banner">
-                <div class="tf-banner-title">Delivered successfully</div>
-                <div class="tf-banner-sub">This parcel has been completed ✅</div>
               </div>`
             : ""
         }

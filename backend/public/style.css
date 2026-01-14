@@ -615,3 +615,137 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== Delivered badge upgrade ===== */
+.tf-badge.delivered {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(34, 197, 94, 0.25);
+  position: relative;
+  padding-left: 12px;
+  padding-right: 14px;
+}
+
+/* nice check icon */
+.tf-badge.delivered .tf-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* small "delivered" shine */
+.tf-badge.delivered::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.22),
+    transparent 55%
+  );
+  pointer-events: none;
+}
+/* ===== COMPACT PREMIUM TRACKING HISTORY ===== */
+
+.tf-history {
+  margin-top: 20px;
+}
+
+/* timeline rail */
+.tf-timeline {
+  position: relative;
+  padding-left: 26px;
+}
+
+.tf-timeline::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #22c55e, rgba(34, 197, 94, 0.15));
+}
+
+/* each event */
+.tf-event {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+/* dot */
+.tf-event-dot {
+  width: 10px;
+  height: 10px;
+  background: #22c55e;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+/* compact card */
+.tf-event-card {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 10px 12px;
+  width: 100%;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* top row */
+.tf-event-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* status text */
+.tf-event-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: #065f46;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* latest pill */
+.tf-chip {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* time */
+.tf-event-time {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* location */
+.tf-event-loc {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #475569;
+}
+
+/* latest highlight */
+.tf-event.latest .tf-event-card {
+  background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
+  border: 1px solid #86efac;
+}
