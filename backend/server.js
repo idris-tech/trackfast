@@ -41,7 +41,7 @@ const parcelSchema = new mongoose.Schema({
   estimated_delivery: { type: String },
   state: { type: String, enum: ["active", "paused"], default: "active" },
 
-  // ✅ NEW: pause reason message shown to users when paused
+  // pause reason (shown to users)
   pause_message: { type: String, default: "" },
 
   createdAt: { type: Date, default: Date.now },
@@ -145,7 +145,6 @@ app.post("/api/parcels", authMiddleware, async (req, res) => {
 
     const now = new Date();
 
-    // Better tracking ID (less collision)
     const trackingId =
       "TRK-" + Math.random().toString(16).slice(2, 10).toUpperCase();
 
@@ -179,21 +178,35 @@ app.get("/api/parcels", authMiddleware, async (req, res) => {
 });
 
 // ===== TRACK PARCEL (PUBLIC) =====
+// ✅ Always returns parcel (even if paused) so UI still shows tracking history
 app.get("/api/parcels/:id", async (req, res) => {
   const parcel = await Parcel.findOne({ id: req.params.id });
 
   if (!parcel) return res.status(404).json({ message: "Parcel not found" });
 
-  // ✅ If paused, return pause message
+  const timeline = Array.isArray(parcel.timeline) ? parcel.timeline : [];
+  const pauseLocation =
+    timeline.length && timeline[timeline.length - 1]?.location
+      ? timeline[timeline.length - 1].location
+      : parcel.origin;
+
+  // ✅ Paused: return parcel + pause info (not 403)
   if (parcel.state === "paused") {
-    return res.status(403).json({
-      message: "Tracking temporarily unavailable",
-      pauseMessage:
-        parcel.pause_message || "This parcel is temporarily paused.",
+    return res.json({
+      ...parcel.toObject(),
+      paused: true,
+      pauseMessage: parcel.pause_message || "",
+      pauseLocation: pauseLocation || "",
     });
   }
 
-  res.json(parcel);
+  // ✅ Active
+  return res.json({
+    ...parcel.toObject(),
+    paused: false,
+    pauseMessage: "",
+    pauseLocation: "",
+  });
 });
 
 // ===== UPDATE STATUS (PROTECTED) =====
@@ -268,7 +281,7 @@ app.put("/api/parcels/:id", authMiddleware, async (req, res) => {
 });
 
 // ===== PAUSE/RESUME (PROTECTED) =====
-// ✅ Now supports pauseMessage when pausing
+// ✅ supports pauseMessage when pausing
 app.put("/api/parcels/:id/state", authMiddleware, async (req, res) => {
   const { state, pauseMessage } = req.body;
 
@@ -309,7 +322,6 @@ app.delete("/api/parcels/:id", authMiddleware, async (req, res) => {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("✅ MongoDB connected");
 
-    // Seed admin once
     const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
     const adminHash = (process.env.ADMIN_PASSWORD_HASH || "").trim();
 

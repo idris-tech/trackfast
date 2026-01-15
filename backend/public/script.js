@@ -1,8 +1,7 @@
 // =====================
-// TrackFast Front Page + Admin Login (Production Safe)
+// TrackFast Front Page + Admin Login (PRODUCTION SAFE)
 // =====================
 
-// AUTO SELECT BASE URL
 const BASE_URL = window.location.hostname.includes("localhost")
   ? "http://localhost:5000"
   : "https://trackfast.onrender.com";
@@ -76,7 +75,7 @@ function isDelivered(status = "") {
 }
 
 function statusTone(status = "") {
-  const s = status.toLowerCase();
+  const s = String(status).toLowerCase();
   if (s.includes("delivered")) return "success";
   if (s.includes("out for delivery")) return "info";
   if (s.includes("transit") || s.includes("dispatched")) return "warning";
@@ -85,7 +84,7 @@ function statusTone(status = "") {
 }
 
 function iconForStatus(status = "") {
-  const s = status.toLowerCase();
+  const s = String(status).toLowerCase();
   if (s.includes("delivered")) return "✅";
   if (s.includes("out for delivery")) return "🛵";
   if (s.includes("transit")) return "🚚";
@@ -120,7 +119,6 @@ async function trackParcel() {
   if (!trackingId) {
     hideLoader();
     showResult();
-    if (result) result.innerHTML = "";
     showToast?.("Please enter a tracking ID", "warning", "Tracking");
     return;
   }
@@ -135,61 +133,65 @@ async function trackParcel() {
     hideLoader();
     showResult();
 
-    // ✅ PAUSED: backend returns 403 + pauseMessage (we'll add in server.js)
-    if (res.status === 403) {
+    if (!res.ok) {
+      const msg = data?.message || "Parcel not found";
+      result.innerHTML = `<p class="error">❌ ${escapeHtml(msg)}</p>`;
+      showToast?.(msg, "error", "Failed");
+      return;
+    }
+
+    // ✅ FIXED: PAUSED LOGIC (MATCHES BACKEND)
+    if (data.paused) {
       const pauseMsg =
-        data?.pauseMessage || data?.pause_message || data?.message || "Paused";
+        data.pauseMessage ||
+        data.pause_message ||
+        "Tracking temporarily unavailable";
 
-      if (result) {
-        result.innerHTML = `
-          <div class="tf-wrap">
-            <div class="tf-card">
-              <div class="tf-head">
-                <div>
-                  <div class="tf-kicker">Tracking ID</div>
-                  <div class="tf-id">${escapeHtml(trackingId)}</div>
-                </div>
-                <div class="tf-head-right">
-                  <span class="tf-badge warning">⏸️ Paused</span>
-                  <div class="tf-sub">Tracking is temporarily unavailable</div>
-                </div>
+      result.innerHTML = `
+        <div class="tf-wrap">
+          <div class="tf-card">
+            <div class="tf-head">
+              <div>
+                <div class="tf-kicker">Tracking ID</div>
+                <div class="tf-id">${escapeHtml(trackingId)}</div>
               </div>
-
-              <div class="tf-pause">
-                <div class="tf-pause-title">Reason from admin</div>
-                <div class="tf-pause-msg">${escapeHtml(pauseMsg)}</div>
+              <div class="tf-head-right">
+                <span class="tf-badge warning">⏸️ Paused</span>
+                <div class="tf-sub">Tracking is temporarily unavailable</div>
               </div>
             </div>
+
+            <div class="tf-banner paused">
+              <div class="tf-banner-left">
+                <div class="tf-banner-icon">⏸️</div>
+                <div>
+                  <div class="tf-banner-title">Tracking Paused</div>
+                  <div class="tf-banner-sub">${escapeHtml(pauseMsg)}</div>
+                </div>
+              </div>
+              <div class="tf-banner-chip">Hold</div>
+            </div>
           </div>
-        `;
-      }
+        </div>
+      `;
 
       showToast?.(pauseMsg, "warning", "Paused");
       return;
     }
 
-    if (!res.ok) {
-      const msg = data?.message || "Request failed";
-      if (result)
-        result.innerHTML = `<p class="error">❌ ${escapeHtml(msg)}</p>`;
-      showToast?.(msg, "error", "Failed");
-      return;
-    }
-
+    // ✅ ACTIVE → RENDER FULL TRACKING
     renderParcel(data);
     showToast?.("Tracking loaded", "success", "Success");
   } catch (err) {
     hideLoader();
     showResult();
-    if (result)
-      result.innerHTML = `<p class="error">❌ Server not reachable</p>`;
+    result.innerHTML = `<p class="error">❌ Server not reachable</p>`;
     showToast?.("Server unreachable. Try again.", "error", "Network");
   }
 }
 
 if (trackBtn) trackBtn.addEventListener("click", trackParcel);
 
-// Enter key on tracking input
 if (trackingInput) {
   trackingInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") trackParcel();
@@ -197,200 +199,7 @@ if (trackingInput) {
 }
 
 // =====================
-// PREMIUM TRACKING UI
-// =====================
-function renderParcel(parcel) {
-  const id = escapeHtml(parcel.id || "—");
-  const statusRaw = parcel.status || "—";
-  const status = escapeHtml(statusRaw);
-  const tone = statusTone(statusRaw);
-  const progress = getProgress(statusRaw);
-
-  const delivered = isDelivered(statusRaw);
-
-  const origin = escapeHtml(parcel.origin || "—");
-  const destination = escapeHtml(parcel.destination || "—");
-  const currentLoc = escapeHtml(getCurrentLocation(parcel) || "—");
-
-  const created = fmtDate(parcel.createdAt);
-  const eta = parcel.estimated_delivery
-    ? escapeHtml(String(parcel.estimated_delivery).slice(0, 10))
-    : "—";
-
-  const sender = escapeHtml(parcel.sender || "—");
-  const receiver = escapeHtml(parcel.receiver || "—");
-  const contact = escapeHtml(parcel.contact || "—");
-
-  const timeline = Array.isArray(parcel.timeline)
-    ? parcel.timeline.slice()
-    : [];
-  const tl = timeline.reverse(); // newest first
-
-  const steps = getSteps();
-  const activeIndex = steps.indexOf(statusRaw);
-
-  const stepPills = steps
-    .map((s, i) => {
-      const done = activeIndex >= i && activeIndex !== -1;
-      const current = activeIndex === i;
-      return `
-        <div class="tf-step ${done ? "done" : ""} ${current ? "current" : ""}">
-          <span class="tf-step-dot">${done ? "✓" : ""}</span>
-          <span class="tf-step-label">${escapeHtml(s)}</span>
-        </div>
-      `;
-    })
-    .join("");
-
-  const historyHtml = tl.length
-    ? `
-      <div class="tf-timeline">
-        ${tl
-          .map((t, idx) => {
-            const isLatest = idx === 0;
-            const tStatus = escapeHtml(t.status || "—");
-            const tLoc = escapeHtml(t.location || "—");
-            const tTime = fmtDate(t.time);
-
-            return `
-              <div class="tf-event ${isLatest ? "latest" : ""}">
-                <div class="tf-event-rail">
-                  <span class="tf-event-dot"></span>
-                  <span class="tf-event-line"></span>
-                </div>
-                <div class="tf-event-card">
-                  <div class="tf-event-top">
-                    <div class="tf-event-status">
-                      <span class="tf-emoji">${iconForStatus(
-                        t.status || ""
-                      )}</span>
-                      <span>${tStatus}</span>
-                      ${isLatest ? `<span class="tf-chip">Latest</span>` : ""}
-                      ${
-                        String(t.status || "").toLowerCase() === "delivered"
-                          ? `<span class="tf-chip done">Delivered ✓</span>`
-                          : ""
-                      }
-                    </div>
-                    <div class="tf-event-time">${escapeHtml(tTime)}</div>
-                  </div>
-                  <div class="tf-event-loc">📍 ${tLoc}</div>
-                </div>
-              </div>
-            `;
-          })
-          .join("")}
-      </div>
-    `
-    : `
-      <div class="tf-empty">
-        <div class="tf-empty-title">No tracking updates yet</div>
-        <div class="tf-empty-sub">Once the parcel moves, updates will appear here.</div>
-      </div>
-    `;
-
-  if (!result) return;
-
-  result.innerHTML = `
-    <div class="tf-wrap">
-      <div class="tf-card ${delivered ? "delivered" : ""}">
-        <div class="tf-head">
-          <div>
-            <div class="tf-kicker">Tracking ID</div>
-            <div class="tf-id">${id}</div>
-          </div>
-
-          <div class="tf-head-right">
-            <span class="tf-badge ${tone} ${
-    statusRaw === "Delivered" ? "delivered" : ""
-  }">
-  ${
-    statusRaw === "Delivered"
-      ? `<span class="tf-check">✓</span> Delivered`
-      : `${iconForStatus(statusRaw)} ${status}`
-  }
-</span>
-            <div class="tf-sub">Created: <b>${escapeHtml(created)}</b></div>
-          </div>
-        </div>
-
-        ${
-          delivered
-            ? `<div class="tf-banner">
-              </div>`
-            : ""
-        }
-
-        <div class="tf-route">
-          <div class="tf-route-box">
-            <div class="tf-mini">From</div>
-            <div class="tf-route-main">${origin}</div>
-          </div>
-
-          <div class="tf-route-mid">
-            <div class="tf-plane">➜</div>
-            <div class="tf-loc">
-              <span class="tf-mini">Current</span>
-              <span class="tf-loc-pill">${currentLoc}</span>
-            </div>
-          </div>
-
-          <div class="tf-route-box">
-            <div class="tf-mini">To</div>
-            <div class="tf-route-main">${destination}</div>
-          </div>
-        </div>
-
-        <div class="tf-meta">
-          <div class="tf-meta-card">
-            <div class="tf-mini">Estimated delivery</div>
-            <div class="tf-meta-big">${eta}</div>
-          </div>
-
-          <div class="tf-meta-card">
-            <div class="tf-mini">Progress</div>
-            <div class="tf-meta-big">${progress}%</div>
-          </div>
-
-          <div class="tf-meta-card">
-            <div class="tf-mini">Receiver contact</div>
-            <div class="tf-meta-big">${contact}</div>
-          </div>
-        </div>
-
-        <div class="tf-progress">
-          <div class="tf-progress-top">
-            <div class="tf-mini">Delivery progress</div>
-            <div class="tf-progress-text"><b>${status}</b></div>
-          </div>
-          <div class="tf-bar">
-            <div class="tf-fill" style="width:${progress}%"></div>
-          </div>
-
-          <div class="tf-steps">
-            ${stepPills}
-          </div>
-        </div>
-
-        <div class="tf-ship">
-          <div class="tf-section-title">Shipment details</div>
-          <div class="tf-rows">
-            <div class="tf-row"><span>Sender</span><b>${sender}</b></div>
-            <div class="tf-row"><span>Receiver</span><b>${receiver}</b></div>
-          </div>
-        </div>
-
-        <div class="tf-history">
-          <div class="tf-section-title">Tracking history</div>
-          ${historyHtml}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-// =====================
-// ADMIN LOGIN MODAL + LOGIN
+// ADMIN LOGIN
 // =====================
 function openAdminModal() {
   if (!adminModal) return;
@@ -422,8 +231,6 @@ if (adminModal) {
 }
 
 async function loginAdmin() {
-  if (!adminEmail || !adminPassword || !adminLoginBtn) return;
-
   const email = adminEmail.value.trim();
   const password = adminPassword.value.trim();
 
@@ -450,7 +257,6 @@ async function loginAdmin() {
     }
 
     localStorage.setItem("adminToken", data.token);
-
     showToast?.("Login successful", "success", "Welcome");
     closeAdminModal();
 
@@ -459,8 +265,8 @@ async function loginAdmin() {
 
     setTimeout(() => {
       window.location.href = "admin.html";
-    }, 450);
-  } catch (err) {
+    }, 400);
+  } catch {
     showToast?.("Server unreachable", "error", "Network");
   } finally {
     adminLoginBtn.disabled = false;
@@ -470,7 +276,6 @@ async function loginAdmin() {
 
 if (adminLoginBtn) adminLoginBtn.addEventListener("click", loginAdmin);
 
-// Enter key triggers login
 [adminEmail, adminPassword].forEach((el) => {
   el?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") loginAdmin();

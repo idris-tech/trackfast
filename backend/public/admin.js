@@ -1,5 +1,5 @@
 // =====================
-// TrackFast Admin Dashboard (JWT + Filters + Stats + Pause Reason)
+// TrackFast Admin Dashboard (JWT + Filters + Stats + Pause Message FIXED)
 // =====================
 
 const BASE_URL = window.location.hostname.includes("localhost")
@@ -23,20 +23,20 @@ const statusFilter = document.getElementById("statusFilter");
 const stateFilter = document.getElementById("stateFilter");
 const table = document.getElementById("parcelTable");
 
-// Stats DOM
+// Stats
 const totalEl = document.getElementById("total");
 const activeEl = document.getElementById("active");
 const pausedEl = document.getElementById("paused");
 const deliveredEl = document.getElementById("delivered");
 
-// Update modal DOM
+// Update modal
 const updateModal = document.getElementById("updateModal");
 const updateStatus = document.getElementById("updateStatus");
 const updateLocation = document.getElementById("updateLocation");
 const cancelUpdate = document.getElementById("cancelUpdate");
 const saveUpdate = document.getElementById("saveUpdate");
 
-// Edit modal DOM
+// Edit modal
 const editModal = document.getElementById("editModal");
 const editSender = document.getElementById("editSender");
 const editReceiver = document.getElementById("editReceiver");
@@ -48,16 +48,16 @@ const editStatus = document.getElementById("editStatus");
 const cancelEdit = document.getElementById("cancelEdit");
 const saveEdit = document.getElementById("saveEdit");
 
-// Delete modal DOM
+// Delete modal
 const deleteModal = document.getElementById("deleteModal");
 const deleteParcelIdEl = document.getElementById("deleteParcelId");
 const cancelDelete = document.getElementById("cancelDelete");
 const confirmDelete = document.getElementById("confirmDelete");
 
-// Pause modal DOM (make sure you have pauseModal in admin.html)
+// Pause modal (✅ IDs must match admin.html)
 const pauseModal = document.getElementById("pauseModal");
 const pauseParcelIdEl = document.getElementById("pauseParcelId");
-const pauseReasonEl = document.getElementById("pauseReason");
+const pauseMessageEl = document.getElementById("pauseMessage"); // ✅ correct id
 const cancelPause = document.getElementById("cancelPause");
 const confirmPause = document.getElementById("confirmPause");
 
@@ -113,11 +113,7 @@ async function apiFetch(path, options = {}) {
     throw new Error(data.message || "Unauthorized");
   }
 
-  if (!res.ok) {
-    console.error("API ERROR:", res.status, path, data);
-    throw new Error(data.message || "Request failed");
-  }
-
+  if (!res.ok) throw new Error(data.message || "Request failed");
   return data;
 }
 
@@ -131,7 +127,6 @@ function getCurrentLocation(p) {
 }
 
 function renderStats(list) {
-  if (!totalEl) return;
   totalEl.innerText = list.length;
   activeEl.innerText = list.filter((p) => p.state === "active").length;
   pausedEl.innerText = list.filter((p) => p.state === "paused").length;
@@ -160,7 +155,7 @@ function applyFilters() {
 }
 
 // =====================
-// MODALS
+// MODAL HELPERS
 // =====================
 function openModal(el) {
   if (el) el.style.display = "flex";
@@ -169,7 +164,6 @@ function closeModal(el) {
   if (el) el.style.display = "none";
 }
 
-// close buttons with data-close
 document.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-close]");
   if (!btn) return;
@@ -177,14 +171,12 @@ document.addEventListener("click", (e) => {
   closeModal(document.getElementById(id));
 });
 
-// click outside closes
 [updateModal, editModal, deleteModal, pauseModal].forEach((m) => {
   m?.addEventListener("click", (e) => {
     if (e.target === m) closeModal(m);
   });
 });
 
-// ESC closes
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   [updateModal, editModal, deleteModal, pauseModal].forEach((m) =>
@@ -193,14 +185,14 @@ document.addEventListener("keydown", (e) => {
 });
 
 // =====================
-// FETCH
+// DATA
 // =====================
 async function fetchParcels() {
   parcels = await apiFetch("/api/parcels");
 }
 
 // =====================
-// RENDER TABLE
+// RENDER
 // =====================
 function renderDashboard() {
   if (!table) return;
@@ -212,6 +204,7 @@ function renderDashboard() {
 
   list.forEach((p) => {
     const row = document.createElement("tr");
+
     const isPaused = p.state === "paused";
     const isDelivered = p.status === "Delivered";
 
@@ -221,9 +214,9 @@ function renderDashboard() {
       <td>${getCurrentLocation(p)}</td>
       <td>${p.state}</td>
       <td class="actions">
-        <button class="${isPaused ? "resume" : "pause"}">
-          ${isPaused ? "Resume" : "Pause"}
-        </button>
+        <button class="${isPaused ? "resume" : "pause"}">${
+      isPaused ? "Resume" : "Pause"
+    }</button>
         <button class="update" ${isPaused ? "disabled" : ""}>Update</button>
         <button class="edit">Edit</button>
         <button class="delete">Delete</button>
@@ -235,27 +228,17 @@ function renderDashboard() {
     // Pause / Resume
     row.querySelector(".pause, .resume").onclick = async () => {
       try {
-        // Pause => open modal to enter reason
+        // If pausing -> open pause modal to type message
         if (!isPaused) {
           pendingPauseId = p.id;
-
-          if (!pauseModal || !pauseReasonEl || !pauseParcelIdEl) {
-            window.showToast?.(
-              "Pause modal missing in admin.html",
-              "error",
-              "UI"
-            );
-            return;
-          }
-
-          pauseParcelIdEl.textContent = p.id;
-          pauseReasonEl.value = "";
+          if (pauseParcelIdEl) pauseParcelIdEl.textContent = p.id;
+          if (pauseMessageEl) pauseMessageEl.value = "";
           openModal(pauseModal);
-          setTimeout(() => pauseReasonEl.focus(), 80);
+          setTimeout(() => pauseMessageEl?.focus(), 50);
           return;
         }
 
-        // Resume => call API
+        // Resume
         await apiFetch(`/api/parcels/${p.id}/state`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -288,18 +271,14 @@ function renderDashboard() {
     // Delete
     row.querySelector(".delete").onclick = () => {
       pendingDeleteId = p.id;
-      if (deleteModal && deleteParcelIdEl) {
-        deleteParcelIdEl.textContent = p.id;
-        openModal(deleteModal);
-      } else {
-        doDelete(p.id);
-      }
+      deleteParcelIdEl.textContent = p.id;
+      openModal(deleteModal);
     };
   });
 }
 
 // =====================
-// PAUSE MODAL
+// PAUSE MODAL (✅ FIXED)
 // =====================
 cancelPause?.addEventListener("click", () => {
   pendingPauseId = null;
@@ -310,21 +289,21 @@ confirmPause?.addEventListener("click", async () => {
   try {
     if (!pendingPauseId) return;
 
-    const reason = String(pauseReasonEl?.value || "").trim();
-    if (!reason) {
-      window.showToast?.("Please enter a pause reason", "warning", "Required");
-      pauseReasonEl?.focus();
+    const msg = String(pauseMessageEl?.value || "").trim();
+    if (!msg) {
+      window.showToast?.("Please enter a pause message", "warning", "Required");
+      pauseMessageEl?.focus();
       return;
     }
 
     confirmPause.disabled = true;
     confirmPause.textContent = "Pausing...";
 
-    // ✅ FIX: send pauseMessage (matches backend)
+    // ✅ IMPORTANT: send pauseMessage (backend expects pauseMessage)
     await apiFetch(`/api/parcels/${pendingPauseId}/state`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ state: "paused", pauseMessage: reason }),
+      body: JSON.stringify({ state: "paused", pauseMessage: msg }),
     });
 
     window.showToast?.("Parcel paused", "success", "Updated");
@@ -334,10 +313,8 @@ confirmPause?.addEventListener("click", async () => {
   } catch (err) {
     window.showToast?.(err.message, "error", "Failed");
   } finally {
-    if (confirmPause) {
-      confirmPause.disabled = false;
-      confirmPause.textContent = "Pause";
-    }
+    confirmPause.disabled = false;
+    confirmPause.textContent = "Pause Now";
   }
 });
 
@@ -365,7 +342,7 @@ function openUpdateModal(parcel) {
 function closeUpdateModal() {
   selectedParcelId = null;
   closeModal(updateModal);
-  if (updateLocation) updateLocation.value = "";
+  updateLocation.value = "";
 }
 
 cancelUpdate?.addEventListener("click", closeUpdateModal);
@@ -469,14 +446,7 @@ saveEdit?.addEventListener("click", async () => {
 // DELETE
 // =====================
 async function doDelete(id) {
-  try {
-    window.showToast?.("Deleting parcel...", "warning", "Please wait");
-    await apiFetch(`/api/parcels/${id}`, { method: "DELETE" });
-    window.showToast?.("Parcel deleted", "success", "Done");
-    await refresh();
-  } catch (err) {
-    window.showToast?.(err.message, "error", "Delete Failed");
-  }
+  await apiFetch(`/api/parcels/${id}`, { method: "DELETE" });
 }
 
 cancelDelete?.addEventListener("click", () => {
@@ -485,31 +455,33 @@ cancelDelete?.addEventListener("click", () => {
 });
 
 confirmDelete?.addEventListener("click", async () => {
-  if (!pendingDeleteId) return;
-  confirmDelete.disabled = true;
-  confirmDelete.textContent = "Deleting...";
-  await doDelete(pendingDeleteId);
-  pendingDeleteId = null;
-  confirmDelete.disabled = false;
-  confirmDelete.textContent = "Yes, Delete";
-  closeModal(deleteModal);
+  try {
+    if (!pendingDeleteId) return;
+
+    confirmDelete.disabled = true;
+    confirmDelete.textContent = "Deleting...";
+
+    window.showToast?.("Deleting parcel...", "warning", "Please wait");
+    await doDelete(pendingDeleteId);
+
+    window.showToast?.("Parcel deleted", "success", "Done");
+    pendingDeleteId = null;
+    closeModal(deleteModal);
+    await refresh();
+  } catch (err) {
+    window.showToast?.(err.message, "error", "Delete Failed");
+  } finally {
+    confirmDelete.disabled = false;
+    confirmDelete.textContent = "Yes, Delete";
+  }
 });
 
 // =====================
 // REFRESH
 // =====================
 async function refresh() {
-  try {
-    await fetchParcels();
-    renderDashboard();
-  } catch (err) {
-    console.error("DASHBOARD LOAD FAIL:", err);
-    window.showToast?.(
-      err.message || "Failed to load parcels",
-      "error",
-      "Dashboard"
-    );
-  }
+  await fetchParcels();
+  renderDashboard();
 }
 
 // Filters
