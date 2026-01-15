@@ -140,42 +140,55 @@ async function trackParcel() {
       return;
     }
 
-    // ✅ FIXED: PAUSED LOGIC (MATCHES BACKEND)
+    // ✅ PAUSED — SHOW HISTORY + PAUSE LOCATION
     if (data.paused) {
       const pauseMsg =
         data.pauseMessage ||
         data.pause_message ||
         "Tracking temporarily unavailable";
 
-      result.innerHTML = `
-        <div class="tf-wrap">
-          <div class="tf-card">
-            <div class="tf-head">
-              <div>
-                <div class="tf-kicker">Tracking ID</div>
-                <div class="tf-id">${escapeHtml(trackingId)}</div>
-              </div>
-              <div class="tf-head-right">
-                <span class="tf-badge warning">⏸️ Paused</span>
-                <div class="tf-sub">Tracking is temporarily unavailable</div>
-              </div>
-            </div>
+      const pauseLoc = data.pauseLocation || getCurrentLocation(data) || "—";
 
-            <div class="tf-banner paused">
-              <div class="tf-banner-left">
-                <div class="tf-banner-icon">⏸️</div>
-                <div>
-                  <div class="tf-banner-title">Tracking Paused</div>
-                  <div class="tf-banner-sub">${escapeHtml(pauseMsg)}</div>
-                </div>
-              </div>
-              <div class="tf-banner-chip">Hold</div>
-            </div>
+      // clone timeline safely
+      const timeline = Array.isArray(data.timeline) ? [...data.timeline] : [];
+
+      // add PAUSE event (virtual, not saved)
+      timeline.push({
+        status: "Paused",
+        location: pauseLoc,
+        time: new Date().toISOString(),
+        _paused: true,
+      });
+
+      // reuse normal renderer logic
+      renderParcel({
+        ...data,
+        timeline,
+        status: data.status, // keep last real status
+      });
+
+      // inject pause banner ABOVE history
+      const banner = document.createElement("div");
+      banner.innerHTML = `
+    <div class="tf-banner paused">
+      <div class="tf-banner-left">
+        <div class="tf-banner-icon">⏸️</div>
+        <div>
+          <div class="tf-banner-title">Tracking Paused</div>
+          <div class="tf-banner-sub">
+            ${escapeHtml(pauseMsg)}<br />
+            <small>📍 Paused at: <b>${escapeHtml(pauseLoc)}</b></small>
           </div>
         </div>
-      `;
+      </div>
+      <div class="tf-banner-chip">Hold</div>
+    </div>
+  `;
 
-      showToast?.(pauseMsg, "warning", "Paused");
+      const card = result.querySelector(".tf-card");
+      if (card) card.insertBefore(banner.firstElementChild, card.children[1]);
+
+      showToast?.("Tracking paused", "warning", "Paused");
       return;
     }
 
