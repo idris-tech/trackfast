@@ -4,25 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Create Parcel</title>
+
     <link rel="stylesheet" href="parcel.css" />
     <link rel="stylesheet" href="toast.css" />
+
     <script>
       if (!localStorage.getItem("adminToken")) {
         window.location.replace("index.html");
       }
     </script>
   </head>
+
   <body>
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <h2>TrackFast</h2>
       <ul>
         <li onclick="window.location.href='admin.html'">Dashboard</li>
-        <li class="active" onclick="window.location.href='parcel.html'">
-          Create Parcel
-        </li>
-
-        <!-- ✅ Logout clears JWT -->
+        <li class="active">Create Parcel</li>
         <li
           onclick="localStorage.removeItem('adminToken'); window.location.href='index.html'"
         >
@@ -33,30 +32,33 @@
 
     <!-- MAIN -->
     <main class="main">
-      <h1>Create New Parcel</h1>
+      <div class="page-head">
+        <h1>Create New Parcel</h1>
+        <p>Fill in parcel details to generate a tracking ID</p>
+      </div>
 
-      <form id="parcelForm" class="form">
-        <div class="group">
-          <label>Sender Name</label>
-          <input type="text" name="sender" required />
-        </div>
+      <form id="parcelForm" class="card">
+        <div class="grid">
+          <div class="group">
+            <label>Sender Name</label>
+            <input type="text" name="sender" required />
+          </div>
 
-        <div class="group">
-          <label>Receiver Name</label>
-          <input type="text" name="receiver" required />
-        </div>
+          <div class="group">
+            <label>Receiver Name</label>
+            <input type="text" name="receiver" required />
+          </div>
 
-        <div class="group">
-          <label>Receiver Contact</label>
-          <input type="text" name="contact" required />
-        </div>
+          <div class="group">
+            <label>Receiver Contact</label>
+            <input type="text" name="contact" required />
+          </div>
 
-        <div class="group">
-          <label>Parcel Description</label>
-          <textarea name="description"></textarea>
-        </div>
+          <div class="group">
+            <label>Parcel Description</label>
+            <textarea name="description"></textarea>
+          </div>
 
-        <div class="row">
           <div class="group">
             <label>Origin</label>
             <input type="text" name="origin" required />
@@ -66,9 +68,7 @@
             <label>Destination</label>
             <input type="text" name="destination" required />
           </div>
-        </div>
 
-        <div class="row">
           <div class="group">
             <label>Status</label>
             <select name="status" required>
@@ -87,7 +87,10 @@
           </div>
         </div>
 
-        <button type="submit">Create Parcel</button>
+        <div class="actions">
+          <button type="reset" class="btn-soft">Clear</button>
+          <button type="submit" class="btn-primary">Create Parcel</button>
+        </div>
       </form>
     </main>
 

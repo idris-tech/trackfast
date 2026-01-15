@@ -828,3 +828,226 @@ button {
   font-size: 11px;
   opacity: 0.8;
 }
+/* =========================
+   COMPACT MODE (NO REDESIGN)
+   ========================= */
+
+/* Reduce vertical spacing */
+.tf-card {
+  padding: 18px !important;
+}
+
+.tf-route,
+.tf-meta,
+.tf-progress,
+.tf-history {
+  margin-top: 12px !important;
+}
+
+/* Shorter meta cards */
+.tf-meta-card {
+  padding: 10px !important;
+}
+
+/* Compact progress */
+.tf-progress {
+  padding: 10px !important;
+}
+
+/* Compact timeline */
+.tf-event-card {
+  padding: 8px 10px !important;
+}
+
+.tf-event {
+  margin-bottom: 8px !important;
+}
+
+/* Smaller banner */
+.tf-banner {
+  margin: 10px 0 14px !important;
+  padding: 10px !important;
+}
+
+/* Smaller titles */
+.tf-section-title {
+  margin-top: 12px !important;
+  font-size: 13px !important;
+}
+/* =========================
+   TIMELINE LINE FIX
+   ========================= */
+
+/* Wrap timeline with a vertical rail */
+.tf-history {
+  position: relative;
+}
+
+/* Vertical line */
+.tf-history::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 32px;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #22c55e, rgba(34, 197, 94, 0.15));
+}
+
+/* Each event aligns with the line */
+.tf-event {
+  position: relative;
+  padding-left: 16px;
+}
+
+/* Dot sits on the line */
+.tf-event-dot {
+  position: relative;
+  z-index: 2;
+}
+
+/* Latest event stronger line */
+.tf-event.latest ~ .tf-event::before {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+/* =========================
+   MOBILE APP RESPONSIVE
+   ========================= */
+@media (max-width: 600px) {
+  /* NAVBAR */
+  .navbar {
+    padding: 14px 18px;
+  }
+
+  .logo {
+    font-size: 18px;
+  }
+
+  .nav-links {
+    gap: 16px;
+    font-size: 13px;
+  }
+
+  /* MAIN CONTAINER */
+  .container {
+    padding-top: 90px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* MAIN CARD */
+  .card {
+    padding: 22px 18px;
+    border-radius: 22px;
+  }
+
+  .card h1 {
+    font-size: 22px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+  }
+
+  /* TRACK INPUT */
+  .track-box {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .track-box input,
+  .track-box button {
+    width: 100%;
+    padding: 14px;
+    font-size: 14px;
+  }
+
+  /* TRACKING CARD */
+  .tf-card {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  /* HEADER */
+  .tf-head {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .tf-head-right {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  /* ROUTE STACK */
+  .tf-route {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .tf-route-mid {
+    justify-items: flex-start;
+  }
+
+  /* META CARDS STACK */
+  .tf-meta {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* PROGRESS */
+  .tf-progress {
+    padding: 10px;
+  }
+
+  .tf-bar {
+    height: 12px;
+  }
+
+  /* BANNER (PAUSED / DELIVERED) */
+  .tf-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .tf-banner-chip {
+    align-self: flex-start;
+  }
+
+  /* TIMELINE */
+  .tf-history {
+    margin-top: 16px;
+  }
+
+  .tf-history::before {
+    left: 4px;
+  }
+
+  .tf-event {
+    padding-left: 14px;
+    gap: 8px;
+  }
+
+  .tf-event-card {
+    padding: 8px 10px;
+  }
+
+  .tf-event-status {
+    font-size: 12px;
+  }
+
+  .tf-event-time {
+    font-size: 10px;
+  }
+
+  .tf-event-loc {
+    font-size: 11px;
+  }
+
+  /* SECTION TITLES */
+  .tf-section-title {
+    font-size: 13px;
+  }
+}

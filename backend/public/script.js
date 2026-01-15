@@ -1,5 +1,5 @@
 // =====================
-// TrackFast Front Page + Admin Login (PRODUCTION SAFE)
+// TrackFast Front Page + Admin Login (FINAL – PAUSE FIXED)
 // =====================
 
 const BASE_URL = window.location.hostname.includes("localhost")
@@ -74,52 +74,43 @@ function isDelivered(status = "") {
   return String(status).toLowerCase() === "delivered";
 }
 
-function statusTone(status = "") {
-  const s = String(status).toLowerCase();
-  if (s.includes("delivered")) return "success";
-  if (s.includes("out for delivery")) return "info";
-  if (s.includes("transit") || s.includes("dispatched")) return "warning";
-  if (s.includes("processing")) return "neutral";
-  return "neutral";
-}
-
 function iconForStatus(status = "") {
-  const s = String(status).toLowerCase();
+  const s = status.toLowerCase();
   if (s.includes("delivered")) return "✅";
-  if (s.includes("out for delivery")) return "🛵";
+  if (s.includes("out")) return "🛵";
   if (s.includes("transit")) return "🚚";
   if (s.includes("dispatched")) return "📦";
   if (s.includes("processing")) return "⚙️";
-  if (s.includes("received")) return "🧾";
+  if (s.includes("order")) return "🧾";
   return "📍";
 }
 
 function getCurrentLocation(parcel) {
+  if (parcel.paused && parcel.pauseLocation) return parcel.pauseLocation;
   const tl = Array.isArray(parcel.timeline) ? parcel.timeline : [];
   return tl.length ? tl[tl.length - 1].location : parcel.origin || "—";
 }
 
 async function safeJson(res) {
   const ct = res.headers.get("content-type") || "";
-  if (ct.includes("application/json")) return res.json();
-  return { message: await res.text() };
+  return ct.includes("application/json")
+    ? res.json()
+    : { message: await res.text() };
 }
 
 // =====================
 // TRACK PARCEL
 // =====================
 async function trackParcel() {
-  if (!trackingInput) return;
-
   hideResult();
   showLoader();
 
   const trackingId = trackingInput.value.trim();
-
   if (!trackingId) {
     hideLoader();
     showResult();
-    showToast?.("Please enter a tracking ID", "warning", "Tracking");
+    result.innerHTML = "";
+    showToast?.("Enter tracking ID", "warning", "Tracking");
     return;
   }
 
@@ -127,170 +118,183 @@ async function trackParcel() {
     const res = await fetch(
       `${BASE_URL}/api/parcels/${encodeURIComponent(trackingId)}`
     );
-
     const data = await safeJson(res);
 
     hideLoader();
     showResult();
 
     if (!res.ok) {
-      const msg = data?.message || "Parcel not found";
-      result.innerHTML = `<p class="error">❌ ${escapeHtml(msg)}</p>`;
-      showToast?.(msg, "error", "Failed");
+      result.innerHTML = `<p class="error">❌ ${escapeHtml(
+        data.message || "Not found"
+      )}</p>`;
       return;
     }
 
-    // ✅ PAUSED — SHOW HISTORY + PAUSE LOCATION
-    if (data.paused) {
-      const pauseMsg =
-        data.pauseMessage ||
-        data.pause_message ||
-        "Tracking temporarily unavailable";
-
-      const pauseLoc = data.pauseLocation || getCurrentLocation(data) || "—";
-
-      // clone timeline safely
-      const timeline = Array.isArray(data.timeline) ? [...data.timeline] : [];
-
-      // add PAUSE event (virtual, not saved)
-      timeline.push({
-        status: "Paused",
-        location: pauseLoc,
-        time: new Date().toISOString(),
-        _paused: true,
-      });
-
-      // reuse normal renderer logic
-      renderParcel({
-        ...data,
-        timeline,
-        status: data.status, // keep last real status
-      });
-
-      // inject pause banner ABOVE history
-      const banner = document.createElement("div");
-      banner.innerHTML = `
-    <div class="tf-banner paused">
-      <div class="tf-banner-left">
-        <div class="tf-banner-icon">⏸️</div>
-        <div>
-          <div class="tf-banner-title">Tracking Paused</div>
-          <div class="tf-banner-sub">
-            ${escapeHtml(pauseMsg)}<br />
-            <small>📍 Paused at: <b>${escapeHtml(pauseLoc)}</b></small>
-          </div>
-        </div>
-      </div>
-      <div class="tf-banner-chip">Hold</div>
-    </div>
-  `;
-
-      const card = result.querySelector(".tf-card");
-      if (card) card.insertBefore(banner.firstElementChild, card.children[1]);
-
-      showToast?.("Tracking paused", "warning", "Paused");
-      return;
-    }
-
-    // ✅ ACTIVE → RENDER FULL TRACKING
     renderParcel(data);
-    showToast?.("Tracking loaded", "success", "Success");
-  } catch (err) {
+  } catch {
     hideLoader();
     showResult();
     result.innerHTML = `<p class="error">❌ Server not reachable</p>`;
-    showToast?.("Server unreachable. Try again.", "error", "Network");
   }
 }
 
-if (trackBtn) trackBtn.addEventListener("click", trackParcel);
+trackBtn?.addEventListener("click", trackParcel);
+trackingInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") trackParcel();
+});
 
-if (trackingInput) {
-  trackingInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") trackParcel();
-  });
+// =====================
+// RENDER PARCEL (PAUSE FIXED)
+// =====================
+function renderParcel(parcel) {
+  const id = escapeHtml(parcel.id);
+  const status = escapeHtml(parcel.status);
+  const created = fmtDate(parcel.createdAt);
+  const origin = escapeHtml(parcel.origin);
+  const destination = escapeHtml(parcel.destination);
+  const currentLoc = escapeHtml(getCurrentLocation(parcel));
+  const delivered = isDelivered(parcel.status);
+  const progress = delivered ? 100 : getProgress(parcel.status);
+
+  const pausedBanner = parcel.paused
+    ? `
+      <div class="tf-banner paused">
+        <div class="tf-banner-left">
+          <div class="tf-banner-icon">⏸️</div>
+          <div>
+            <div class="tf-banner-title">Shipment Paused</div>
+            <div class="tf-banner-sub">
+              ${escapeHtml(parcel.pauseMessage || "Temporarily on hold")}
+            </div>
+            ${
+              parcel.pauseLocation
+                ? `<div class="tf-mini">Paused at <b>${escapeHtml(
+                    parcel.pauseLocation
+                  )}</b></div>`
+                : ""
+            }
+          </div>
+        </div>
+        <div class="tf-banner-chip">Paused</div>
+      </div>
+    `
+    : "";
+
+  const timeline = [...(parcel.timeline || [])].reverse();
+
+  result.innerHTML = `
+    <div class="tf-wrap">
+      <div class="tf-card">
+        <div class="tf-head">
+          <div>
+            <div class="tf-kicker">Tracking ID</div>
+            <div class="tf-id">${id}</div>
+          </div>
+          <div class="tf-head-right">
+            <span class="tf-badge ${
+              delivered ? "success" : parcel.paused ? "warning" : "info"
+            }">
+              ${iconForStatus(parcel.status)} ${status}
+            </span>
+            <div class="tf-sub">Created: ${escapeHtml(created)}</div>
+          </div>
+        </div>
+
+        ${pausedBanner}
+
+        <div class="tf-route">
+          <div class="tf-route-box">
+            <div class="tf-mini">From</div>
+            <div class="tf-route-main">${origin}</div>
+          </div>
+          <div class="tf-route-mid">
+            <div class="tf-mini">Current</div>
+            <div class="tf-loc-pill">${currentLoc}</div>
+          </div>
+          <div class="tf-route-box">
+            <div class="tf-mini">To</div>
+            <div class="tf-route-main">${destination}</div>
+          </div>
+        </div>
+
+        <div class="tf-progress">
+          <div class="tf-mini">Delivery progress</div>
+          <div class="tf-bar">
+            <div class="tf-fill" style="width:${progress}%"></div>
+          </div>
+        </div>
+
+        <div class="tf-history">
+          <div class="tf-section-title">Tracking history</div>
+          ${
+            timeline.length
+              ? timeline
+                  .map(
+                    (t, i) => `
+                <div class="tf-event ${i === 0 ? "latest" : ""}">
+                  <div class="tf-event-dot"></div>
+                  <div class="tf-event-card compact">
+                    <div class="tf-event-top">
+                      <div class="tf-event-status">
+                        ${iconForStatus(t.status)} ${escapeHtml(t.status)}
+                        ${i === 0 ? `<span class="tf-chip">Latest</span>` : ""}
+                      </div>
+                      <div class="tf-event-time">${fmtDate(t.time)}</div>
+                    </div>
+                    <div class="tf-event-loc">📍 ${escapeHtml(t.location)}</div>
+                  </div>
+                </div>
+              `
+                  )
+                  .join("")
+              : `<div class="tf-empty">No tracking history yet</div>`
+          }
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // =====================
 // ADMIN LOGIN
 // =====================
-function openAdminModal() {
-  if (!adminModal) return;
-  adminModal.style.display = "flex";
-  setTimeout(() => adminEmail?.focus(), 50);
-}
+adminBtn?.addEventListener("click", () => {
+  const token = localStorage.getItem("adminToken");
+  if (token) window.location.href = "admin.html";
+  else adminModal.style.display = "flex";
+});
 
-function closeAdminModal() {
-  if (!adminModal) return;
-  adminModal.style.display = "none";
-}
+adminModal?.addEventListener("click", (e) => {
+  if (e.target === adminModal) adminModal.style.display = "none";
+});
 
-if (adminBtn) {
-  adminBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem("adminToken");
-    if (token) {
-      window.location.href = "admin.html";
-      return;
-    }
-    openAdminModal();
-  });
-}
-
-if (adminModal) {
-  adminModal.addEventListener("click", (e) => {
-    if (e.target === adminModal) closeAdminModal();
-  });
-}
+adminLoginBtn?.addEventListener("click", loginAdmin);
+[adminEmail, adminPassword].forEach((el) =>
+  el?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") loginAdmin();
+  })
+);
 
 async function loginAdmin() {
   const email = adminEmail.value.trim();
   const password = adminPassword.value.trim();
-
-  if (!email || !password) {
-    showToast?.("Enter email and password", "warning", "Login");
-    return;
-  }
+  if (!email || !password) return;
 
   try {
     adminLoginBtn.disabled = true;
-    adminLoginBtn.textContent = "Logging in...";
-
     const res = await fetch(`${BASE_URL}/api/admin/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-
     const data = await safeJson(res);
-
-    if (!res.ok) {
-      showToast?.(data.message || "Login failed", "error", "Denied");
-      return;
-    }
+    if (!res.ok) throw new Error(data.message);
 
     localStorage.setItem("adminToken", data.token);
-    showToast?.("Login successful", "success", "Welcome");
-    closeAdminModal();
-
-    adminEmail.value = "";
-    adminPassword.value = "";
-
-    setTimeout(() => {
-      window.location.href = "admin.html";
-    }, 400);
+    window.location.href = "admin.html";
   } catch {
-    showToast?.("Server unreachable", "error", "Network");
+    showToast?.("Login failed", "error", "Admin");
   } finally {
     adminLoginBtn.disabled = false;
-    adminLoginBtn.textContent = "Login";
   }
 }
-
-if (adminLoginBtn) adminLoginBtn.addEventListener("click", loginAdmin);
-
-[adminEmail, adminPassword].forEach((el) => {
-  el?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") loginAdmin();
-  });
-});
