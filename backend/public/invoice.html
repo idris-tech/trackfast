@@ -227,9 +227,16 @@
         }
 
         @media print {
-            body { background: #fff; padding: 0; }
-            .controls { display: none; }
-            .invoice-page { box-shadow: none; width: 100%; margin: 0; }
+            @page { margin: 0; }
+            body { background: #fff; padding: 0; margin: 0; }
+            .controls { display: none !important; }
+            .invoice-page { 
+                box-shadow: none; 
+                width: 100%; 
+                margin: 0; 
+                padding: 40px; 
+                min-height: 0;
+            }
             .edit-mode [contenteditable="true"] { 
                 background: none !important; 
                 border-bottom: none !important;
