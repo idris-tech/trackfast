@@ -21,7 +21,7 @@ app.use((req, res, next) => {
 });
 
 // ===== SERVE FRONTEND =====
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "..", "public")));
 
 // ===== MONGOOSE MODELS =====
 const adminSchema = new mongoose.Schema(
@@ -115,9 +115,8 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true, message: "TrackFast API running" });
 });
 
-// Frontend entry
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/index.html"));
+  res.sendFile(path.join(__dirname, "..", "public/index.html"));
 });
 
 // ===== ADMIN LOGIN =====
