@@ -17,6 +17,16 @@ const adminModal = document.getElementById("adminModal");
 const adminLoginBtn = document.getElementById("adminLoginBtn");
 const adminEmail = document.getElementById("adminEmail");
 const adminPassword = document.getElementById("adminPassword");
+// Chat Elements
+const chatToggleBtn = document.getElementById("chatToggleBtn");
+const chatWidget = document.getElementById("chatWidget");
+const chatCloseBtn = document.getElementById("chatCloseBtn");
+const chatBody = document.getElementById("chatBody");
+const chatInput = document.getElementById("chatInput");
+const chatSendBtn = document.getElementById("chatSendBtn");
+
+let currentParcelId = null;
+let chatInterval = null;
 
 // =====================
 // HELPERS
@@ -147,6 +157,9 @@ trackingInput?.addEventListener("keydown", (e) => {
 // RENDER PARCEL (PAUSE FIXED)
 // =====================
 function renderParcel(parcel) {
+  currentParcelId = parcel.id;
+  if (chatToggleBtn) chatToggleBtn.classList.remove("hidden");
+
   const id = escapeHtml(parcel.id);
   const status = escapeHtml(parcel.status);
   const created = fmtDate(parcel.createdAt);
@@ -297,4 +310,113 @@ async function loginAdmin() {
   } finally {
     adminLoginBtn.disabled = false;
   }
+}
+
+// =====================
+// TESTIMONIALS SLIDER
+// =====================
+const sliderTrack = document.getElementById("sliderTrack");
+if (sliderTrack) {
+  // Duplicate for infinite scroll visual
+  sliderTrack.innerHTML += sliderTrack.innerHTML;
+}
+
+// =====================
+// CHAT LOGIC
+// =====================
+chatToggleBtn?.addEventListener("click", () => {
+    chatWidget.classList.remove("hidden");
+    chatToggleBtn.classList.add("hidden");
+    loadMessages();
+    startChatPolling();
+});
+
+chatCloseBtn?.addEventListener("click", () => {
+    chatWidget.classList.add("hidden");
+    chatToggleBtn.classList.remove("hidden");
+    stopChatPolling();
+});
+
+chatSendBtn?.addEventListener("click", sendMessage);
+chatInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendMessage();
+});
+
+async function sendMessage() {
+    const content = chatInput.value.trim();
+    if (!content || !currentParcelId) return;
+
+    // Optimistic UI
+    appendMessage({ sender: "user", content }, true);
+    chatInput.value = "";
+
+    try {
+        await fetch(`${BASE_URL}/api/support/messages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                parcelId: currentParcelId,
+                sender: "user",
+                content
+            })
+        });
+        loadMessages(); // Sync
+    } catch (err) {
+        // console.error(err);
+    }
+}
+
+async function loadMessages() {
+    if (!currentParcelId) return;
+    try {
+        const res = await fetch(`${BASE_URL}/api/support/messages/${currentParcelId}`);
+        const msgs = await safeJson(res);
+        renderMessages(msgs);
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function renderMessages(msgs) {
+    if (!Array.isArray(msgs)) return;
+    
+    // Only rebuild if count changes to avoid flicker or sophisticated diffing
+    // For now simple rebuild is fine for small chats
+    const currentCount = chatBody.querySelectorAll('.chat-msg').length;
+    if (msgs.length === currentCount) return;
+
+    chatBody.innerHTML = "";
+    
+    // Intro message
+    const intro = document.createElement("div");
+    intro.className = "chat-placeholder";
+    intro.innerHTML = `Connected to support<br><small>Tracking ID: ${currentParcelId}</small>`;
+    chatBody.appendChild(intro);
+
+    msgs.forEach(msg => appendMessage(msg, false));
+    chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+function appendMessage(msg, scroll = true) {
+    const div = document.createElement("div");
+    // Admin/Superadmin = admin style
+    const isAdmin = msg.sender === "admin" || msg.sender === "superadmin";
+    div.className = `chat-msg ${isAdmin ? "admin" : "user"}`;
+    div.textContent = msg.content;
+    
+    // If append mode vs rebuild
+    // verify not duplicate if optimistic? 
+    // In this simple implementation, loadMessages wipes and rebuilds, so duplicates are transient
+    
+    chatBody.appendChild(div);
+    if (scroll) chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+function startChatPolling() {
+    stopChatPolling();
+    chatInterval = setInterval(loadMessages, 3500);
+}
+
+function stopChatPolling() {
+    if (chatInterval) clearInterval(chatInterval);
 }

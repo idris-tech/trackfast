@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Dashboard</title>
 
-    <link rel="stylesheet" href="admin.css" />
-    <link rel="stylesheet" href="toast.css" />
+    <link rel="stylesheet" href="admin.css?v=5" />
+    <link rel="stylesheet" href="toast.css?v=5" />
 
     <script>
       if (!localStorage.getItem("adminToken")) {
@@ -16,13 +16,20 @@
   </head>
 
   <body>
+    <!-- HONEYPOT TO DEFEAT BROWSER AUTOFILL -->
+    <div style="position: absolute; left: -9999px; top: -9999px;">
+        <input type="text" name="username" tabindex="-1" autocomplete="on">
+        <input type="password" name="password" tabindex="-1" autocomplete="on">
+    </div>
+
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <h2>TrackFast</h2>
       <ul>
-        <li onclick="window.location.href='admin.html'">Dashboard</li>
-        <li onclick="window.location.href='admin.html'">Parcels</li>
-        <li onclick="window.location.href='parcel.html'">Create Parcel</li>
+        <li onclick="navTo('admin.html')">Dashboard</li>
+        <li onclick="navTo('admin.html')">Parcels</li>
+        <li onclick="navTo('parcel.html')">Create Parcel</li>
+        <li id="navTeam" style="display:none" onclick="openAdminModal()">Manage Team</li>
 
         <li
           onclick="localStorage.removeItem('adminToken'); window.location.href='index.html'"
@@ -59,8 +66,9 @@
       <div class="filters">
         <input
           type="text"
-          id="searchInput"
+          id="tf_search_query"
           placeholder="Search by Tracking ID..."
+          autocomplete="off"
         />
 
         <select id="statusFilter">
@@ -241,8 +249,103 @@
       </div>
     </div>
 
+    <div class="modal" id="messagesModal" style="display: none">
+      <div class="modal-card">
+        <div class="modal-head">
+          <div class="chat-title">
+            <span>💬</span>
+            <div class="chat-title-text">
+                <b>Support Chat</b>
+                <small>Active Conversation</small>
+            </div>
+          </div>
+          <button class="modal-x" type="button" data-close="messagesModal">✕</button>
+        </div>
+        <div class="modal-body admin-chat-wrap">
+           <div class="danger-box">
+            <span>Tracking ID</span>
+            <strong id="msgParcelId">—</strong>
+          </div>
+          <div id="adminChatBody" class="admin-chat-body">
+            <!-- Messages injected here -->
+          </div>
+          <div class="admin-chat-footer">
+            <input type="text" id="adminChatInput" placeholder="Type a reply..." />
+            <button id="adminChatSendBtn" type="button" class="btn-primary">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="toast-root"></div>
-    <script src="toast.js"></script>
-    <script src="admin.js"></script>
+ 
+    <!-- NEW ADMIN MODAL -->
+    <div class="modal" id="newAdminModal" style="display: none">
+      <div class="modal-card">
+        <div class="modal-head">
+          <h3>Manage Team</h3>
+          <button class="modal-x" type="button" data-close="newAdminModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
+            <h4 style="margin-bottom: 10px;">Create New Admin</h4>
+            <label>Email</label>
+            <input id="newAdminEmail" type="email" placeholder="admin@example.com" />
+            <label>Password</label>
+            <input id="newAdminPassword" type="password" placeholder="Password" />
+            <div style="text-align: right; margin-top: 10px;">
+                <button id="createAdminBtn" class="btn-primary" type="button">Create Admin</button>
+            </div>
+          </div>
+          
+          <div>
+            <h4 style="margin-bottom: 10px;">Existing Admins</h4>
+            <div id="adminsList" style="max-height: 200px; overflow-y: auto;">
+                <!-- Injected via JS -->
+                <p style="color: #888; text-align: center;">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- VIEW PARCEL MODAL -->
+    <div class="modal" id="viewModal" style="display: none">
+      <div class="modal-card modal-card-scroll">
+        <div class="modal-head">
+          <h3>Parcel Details</h3>
+          <button class="modal-x" type="button" data-close="viewModal">✕</button>
+        </div>
+        <div class="modal-body">
+             <div class="tf-wrap id-view-wrap">
+                <!-- Parcel Details Injected Here -->
+             </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESET PASSWORD MODAL -->
+
+    <div class="modal" id="resetPasswordModal" style="display: none">
+      <div class="modal-card">
+        <div class="modal-head">
+          <h3>Reset Password</h3>
+          <button class="modal-x" type="button" data-close="resetPasswordModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-bottom: 10px;">Reset password for <strong id="resetAdminEmail">...</strong></p>
+          <label>New Password</label>
+          <input id="resetAdminNewPass" type="password" placeholder="New Password" />
+        </div>
+        <div class="modal-actions">
+           <button id="cancelResetPass" type="button" class="btn-soft">Cancel</button>
+           <button id="saveResetPass" type="button" class="btn-primary">Save New Password</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="toast.js?v=5"></script>
+    <script src="admin.js?v=9"></script>
   </body>
 </html>
