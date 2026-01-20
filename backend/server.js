@@ -28,6 +28,12 @@ const adminSchema = new mongoose.Schema(
   {
     email: { type: String, unique: true, required: true, lowercase: true },
     passwordHash: { type: String, required: true },
+    role: {
+      type: String,
+      enum: ["superadmin", "admin"],
+      default: "admin",
+    },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "admin" },
   },
   { timestamps: true }
 );
@@ -50,6 +56,7 @@ const parcelSchema = new mongoose.Schema({
   pause_message: { type: String, default: "" },
 
   createdAt: { type: Date, default: Date.now },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "admin" },
 
   timeline: [
     {
@@ -60,15 +67,29 @@ const parcelSchema = new mongoose.Schema({
   ],
 });
 
+const messageSchema = new mongoose.Schema({
+  parcelId: { type: String, required: true },
+  sender: { type: String, enum: ["user", "admin", "superadmin"], required: true },
+  adminId: { type: mongoose.Schema.Types.ObjectId, ref: "admin" }, // if sender is admin
+  content: { type: String, required: true },
+  read: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+});
+
 const Admin = mongoose.model("admin", adminSchema);
 const Parcel = mongoose.model("parcel", parcelSchema);
+const Message = mongoose.model("message", messageSchema);
 
 // ===== HELPERS =====
 function signToken(admin) {
   return jwt.sign(
-    { adminId: admin._id.toString(), email: admin.email },
+    {
+      adminId: admin._id.toString(),
+      email: admin.email,
+      role: admin.role,
+    },
     process.env.JWT_SECRET,
-    { expiresIn: "2h" }
+    { expiresIn: "8h" }
   );
 }
 
@@ -120,7 +141,7 @@ app.post("/api/admin/login", async (req, res) => {
     if (!ok) return res.status(401).json({ message: "Invalid credentials" });
 
     const token = signToken(admin);
-    return res.json({ token });
+    return res.json({ token, role: admin.role, email: admin.email });
   } catch (err) {
     console.error("LOGIN ERROR:", err);
     return res.status(500).json({ message: "Server error" });
@@ -166,6 +187,7 @@ app.post("/api/parcels", authMiddleware, async (req, res) => {
       state: "active",
       pause_message: "",
       createdAt: now,
+      createdBy: req.admin.adminId,
       timeline: [{ status, location: origin, time: now }],
     });
 
@@ -177,8 +199,16 @@ app.post("/api/parcels", authMiddleware, async (req, res) => {
 });
 
 // ===== GET ALL PARCELS (PROTECTED) =====
+// ===== GET ALL PARCELS (PROTECTED) =====
 app.get("/api/parcels", authMiddleware, async (req, res) => {
-  const parcels = await Parcel.find().sort({ createdAt: -1 });
+  let query = {};
+  
+  // If not superadmin, restrict to own parcels
+  if (req.admin.role !== 'superadmin') {
+      query.createdBy = req.admin.adminId;
+  }
+  
+  const parcels = await Parcel.find(query).sort({ createdAt: -1 });
   res.json(parcels);
 });
 
@@ -318,6 +348,135 @@ app.delete("/api/parcels/:id", authMiddleware, async (req, res) => {
   res.json({ message: "Parcel deleted", deleted });
 });
 
+// ===== SUPER ADMIN ROUTES =====
+app.post("/api/admins", authMiddleware, async (req, res) => {
+  if (req.admin.role !== "superadmin") {
+    return res.status(403).json({ message: "Access denied: Super Admin only" });
+  }
+
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password required" });
+    }
+
+    const existing = await Admin.findOne({ email });
+    if (existing) {
+      return res.status(400).json({ message: "Admin already exists" });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const newAdmin = await Admin.create({
+      email,
+      passwordHash,
+      role: "admin",
+      createdBy: req.admin.adminId,
+    });
+
+    res.json({ message: "New admin created", admin: newAdmin });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/admins", authMiddleware, async (req, res) => {
+  if (req.admin.role !== "superadmin") {
+    return res.status(403).json({ message: "Access denied" });
+  }
+  const admins = await Admin.find({}, "-passwordHash");
+  res.json(admins);
+});
+
+app.delete("/api/admins/:id", authMiddleware, async (req, res) => {
+  if (req.admin.role !== "superadmin") {
+    return res.status(403).json({ message: "Access denied" });
+  }
+  
+  // Prevent self-delete
+  if (req.params.id === req.admin.adminId) {
+      return res.status(400).json({ message: "Cannot delete yourself" });
+  }
+
+  await Admin.findByIdAndDelete(req.params.id);
+  res.json({ message: "Admin deleted" });
+});
+
+app.put("/api/admins/:id/password", authMiddleware, async (req, res) => {
+  if (req.admin.role !== "superadmin") {
+      return res.status(403).json({ message: "Access denied" });
+  }
+
+  const { password } = req.body;
+  if (!password) {
+      return res.status(400).json({ message: "Password required" });
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+  await Admin.findByIdAndUpdate(req.params.id, { passwordHash: hash });
+  res.json({ message: "Password updated" });
+});
+
+// ===== SUPPORT & MESSAGES =====
+app.post("/api/support/messages", async (req, res) => {
+  try {
+    // If sent by user (public), needs parcelId.
+    // If sent by admin (authMiddleware), needs parcelId too but authenticated.
+    
+    // For simplicity, we'll allow public POST for users with trackingID check?
+    // Actually, users just have the tracking ID, so we trust that.
+    
+    const { parcelId, content, sender, token } = req.body; 
+    // sender: 'user' or 'admin'
+    
+    // Initial validation
+    if (!parcelId || !content || !sender) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
+
+    const parcel = await Parcel.findOne({ id: parcelId });
+    if (!parcel) return res.status(404).json({ message: "Parcel not found" });
+
+    // If admin, verify token
+    let adminId = null;
+    if (sender === "admin") {
+       // We expect token in body or header for this route if it's mixed
+       // But usually admin routes are protected. 
+       // Let's rely on headers if we reuse authMiddleware, but this is a public route for users too.
+       // So verify manually if admin.
+       if (!token) return res.status(401).json({ message: "Admin token required" });
+       try {
+         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+         adminId = decoded.adminId;
+       } catch {
+         return res.status(401).json({ message: "Invalid token" });
+       }
+    }
+
+    const msg = await Message.create({
+      parcelId,
+      sender,
+      adminId, 
+      content,
+      read: false
+    });
+
+    res.status(201).json(msg);
+  } catch (err) {
+    console.error("MSG ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/support/messages/:parcelId", async (req, res) => {
+  try {
+    const msgs = await Message.find({ parcelId: req.params.parcelId }).sort({ createdAt: 1 });
+    res.json(msgs);
+  } catch (err) {
+     res.status(500).json({ message: "Server error" });
+  }
+});
+
+
 // ===== CONNECT DB + SEED ADMIN + START =====
 (async function start() {
   try {
@@ -333,9 +492,20 @@ app.delete("/api/parcels/:id", authMiddleware, async (req, res) => {
     if (adminEmail && adminHash) {
       const exists = await Admin.findOne({ email: adminEmail });
       if (!exists) {
-        await Admin.create({ email: adminEmail, passwordHash: adminHash });
-        console.log("✅ Admin seeded:", adminEmail);
+        // First admin is SUPERADMIN
+        await Admin.create({
+          email: adminEmail,
+          passwordHash: adminHash,
+          role: "superadmin",
+        });
+        console.log("✅ Super Admin seeded:", adminEmail);
       } else {
+        // If exists but no role, update to superadmin (migration)
+        if (!exists.role) {
+            exists.role = "superadmin";
+            await exists.save();
+            console.log("✅ Updated existing admin to Super Admin");
+        }
         console.log("ℹ️ Admin already exists:", adminEmail);
       }
     } else {
