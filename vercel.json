@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "public": true,
+  "name": "trackfast-frontend",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/public/$1" }
+  ]
+}
