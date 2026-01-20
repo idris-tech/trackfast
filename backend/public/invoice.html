@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrackFast - Inbound Invoice</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary: #00ffbf;
+            --primary-dark: #008866;
+            --text-main: #1a1a1b;
+            --text-muted: #53565a;
+            --border-light: #d1d4d7;
+            --bg-table: #f1f2f2;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #e2e8f0; 
+            font-family: 'Roboto', sans-serif; 
+            color: var(--text-main);
+            padding: 40px 0;
+        }
+        
+        .controls {
+            max-width: 900px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .btn {
+            padding: 10px 24px;
+            border-radius: 4px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 13px;
+        }
+        .btn-print { background: #1a1a1b; color: #fff; }
+        .btn-edit { background: #64748b; color: #fff; }
+        .btn-download { background: var(--primary); color: #022c22; }
+
+        .invoice-page {
+            width: 840px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 40px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            min-height: 1100px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Editable Styles */
+        [contenteditable="true"] {
+            outline: none;
+            transition: all 0.2s;
+        }
+        .edit-mode [contenteditable="true"] {
+            background-color: #f0f9ff;
+            border-bottom: 1px dotted #0ea5e9;
+            cursor: text;
+        }
+        .edit-mode [contenteditable="true"]:hover {
+            background-color: #e0f2fe;
+        }
+        .edit-mode [contenteditable="true"]:focus {
+            background-color: #fff;
+            border-bottom: 2px solid #0ea5e9;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+        }
+        .header-left { width: 50%; }
+        .header-right { width: 45%; text-align: right; }
+
+        .title { 
+            font-size: 28px; 
+            font-weight: 700; 
+            margin-bottom: 25px; 
+            color: #000;
+        }
+        
+        .logo-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .logo-img { height: 32px; }
+        .logo-text { font-size: 22px; font-weight: 900; color: #000; }
+        .logo-text span { color: var(--primary-dark); }
+
+        .address-box {
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-main);
+        }
+
+        .id-table {
+            width: 100%;
+            font-size: 12px;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .id-table td { padding: 3px 0; }
+        .id-table td:first-child { width: 60%; color: var(--text-muted); text-align: left; }
+        .id-table td:last-child { font-weight: 700; text-align: right; }
+
+        .enquiries {
+            margin-top: 15px;
+            font-size: 11px;
+            border-top: 1px solid var(--border-light);
+            padding-top: 10px;
+        }
+        .enquiries strong { display: block; margin-bottom: 5px; color: #000; font-size: 12px; }
+
+        /* TABLES */
+        .section-title {
+            background: var(--bg-table);
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-top: 1px solid var(--border-light);
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 5px;
+        }
+
+        .main-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-bottom: 25px;
+        }
+        .main-table th {
+            text-align: left;
+            padding: 8px 10px;
+            color: var(--text-muted);
+            font-weight: 400;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .main-table td {
+            padding: 10px;
+            vertical-align: top;
+            border-bottom: 1px dashed var(--border-light);
+        }
+        .main-table .num { text-align: right; }
+        .main-table .bold { font-weight: 700; color: #000; }
+
+        .totals-row td {
+            border-bottom: 2px solid #000;
+            border-top: 1px solid #000;
+            font-weight: 700;
+        }
+
+        /* FLEX BOXES */
+        .summary-grid {
+            display: flex;
+            justify-content: flex-end;
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+        .sub-table {
+            width: 250px;
+            font-size: 11px;
+        }
+        .sub-table table { width: 100%; border-collapse: collapse; }
+        .sub-table td { padding: 4px 0; }
+        .sub-table .label { color: var(--text-muted); }
+        .sub-table .val { text-align: right; font-weight: 700; }
+
+        .total-amount-box {
+            text-align: right;
+            padding: 15px 0;
+            border-top: 2px solid #000;
+            margin-top: 20px;
+        }
+        .total-label { font-size: 14px; font-weight: 700; margin-right: 20px; }
+        .total-val { font-size: 24px; font-weight: 900; }
+
+        /* SHIPMENT DETAILS AREA */
+        .shipment-details {
+            margin-top: 40px;
+        }
+        .detail-row {
+            display: flex;
+            font-size: 11px;
+            border-bottom: 1px solid var(--border-light);
+            padding: 12px 0;
+        }
+        .detail-col { flex: 1; padding-right: 15px; }
+        .detail-col strong { display: block; color: var(--text-muted); font-size: 10px; text-transform: uppercase; margin-bottom: 4px; }
+
+        /* PAYMENT */
+        .payment-box {
+            margin-top: auto;
+            border: 1px solid var(--border-light);
+            padding: 20px;
+            background: #fff;
+            font-size: 12px;
+        }
+        .payment-box h3 { font-size: 14px; margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid var(--border-light); padding-bottom: 8px; }
+        .payment-grid { display: flex; gap: 30px; }
+        .pay-item strong { display: block; margin-bottom: 4px; }
+
+        /* FOOTER */
+        .footer {
+            margin-top: 30px;
+            font-size: 10px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid var(--border-light);
+            padding-top: 15px;
+        }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .controls { display: none; }
+            .invoice-page { box-shadow: none; width: 100%; margin: 0; }
+            .edit-mode [contenteditable="true"] { 
+                background: none !important; 
+                border-bottom: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <button class="btn btn-print" onclick="window.print()">Print</button>
+        <button class="btn btn-edit" id="btnEdit" onclick="toggleEditMode()">Edit Invoice</button>
+        <button class="btn btn-download" onclick="downloadPDF()">Download PDF</button>
+    </div>
+
+    <div class="invoice-page" id="invoice">
+        <!-- HEADER -->
+        <div class="header">
+            <div class="header-left">
+                <div class="title" contenteditable="false">Inbound Invoice</div>
+                <div class="address-box">
+                    <p id="senderNameDisplay" style="font-weight: 700; font-size: 14px;" contenteditable="false"></p>
+                    <p id="senderAddress" contenteditable="false"></p>
+                    <p id="senderVat" contenteditable="false">VAT No. 12/34567/8910</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="logo-wrap">
+                    <img src="logo.png" alt="TrackFast" class="logo-img">
+                    <div class="logo-text">Track<span>Fast</span></div>
+                </div>
+                <table class="id-table">
+                    <tr><td>Invoice Number:</td><td id="invNumber" contenteditable="false">...</td></tr>
+                    <tr><td>Account Number:</td><td id="accNumber" contenteditable="false">TF-8829-X</td></tr>
+                    <tr><td>Invoice Date:</td><td id="invDate" contenteditable="false">...</td></tr>
+                    <tr><td>Page:</td><td>1 of 1</td></tr>
+                </table>
+                <div class="enquiries">
+                    <strong>For Invoice Enquiries</strong>
+                    <p contenteditable="false">Telephone: +44 20 7123 4567</p>
+                    <p contenteditable="false">Email: accounts@trackfast.logistics</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">Summary of charges</div>
+        <table class="main-table">
+            <thead>
+                <tr>
+                    <th>Type of Service</th>
+                    <th class="num">Shipments</th>
+                    <th class="num">Weight</th>
+                    <th class="num">Std Shipping Charge</th>
+                    <th class="num">Extra Charges</th>
+                    <th class="num">VAT</th>
+                    <th class="num">Net Charge</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="bold" id="serviceType" contenteditable="false">TRACKFAST EXPRESS (DOMESTIC)</td>
+                    <td class="num" contenteditable="false">1</td>
+                    <td class="num" id="mainWeight" contenteditable="false">0.00 kg</td>
+                    <td class="num" id="stdCharge" contenteditable="false">$45.00</td>
+                    <td class="num" id="extraCharge" contenteditable="false">$5.00</td>
+                    <td class="num" id="vatCharge" contenteditable="false">$4.00</td>
+                    <td class="num bold" id="netCharge" contenteditable="false">$54.00</td>
+                </tr>
+                <tr class="totals-row">
+                    <td>Totals</td>
+                    <td class="num" contenteditable="false">1</td>
+                    <td class="num" id="totalWeight" contenteditable="false">0.00 kg</td>
+                    <td class="num" id="totalStd" contenteditable="false">$45.00</td>
+                    <td class="num" id="totalExtra" contenteditable="false">$5.00</td>
+                    <td class="num" id="totalVat" contenteditable="false">$4.00</td>
+                    <td class="num" id="totalNet" contenteditable="false">$54.00</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- ANALYSIS SECTION -->
+        <div class="summary-grid">
+            <div class="sub-table">
+                <div class="section-title">Analysis of Extra Charges</div>
+                <table>
+                    <tr><td class="label">FUEL SURCHARGE</td><td class="val" id="fuelCharge" contenteditable="false">$5.00</td></tr>
+                    <tr><td class="label">INSURANCE</td><td class="val" contenteditable="false">$0.00</td></tr>
+                    <tr style="border-top: 1px solid #000;"><td class="label">TOTAL EXTRA CHARGES</td><td class="val" id="totalExtraAnalysis" contenteditable="false">$5.00</td></tr>
+                </table>
+            </div>
+            <div class="sub-table">
+                <div class="section-title">Analysis of VAT</div>
+                <table>
+                    <thead>
+                        <tr style="font-size: 9px; color: var(--text-muted);">
+                            <td>Code</td><td>Rate (%)</td><td>Taxable Total</td><td>VAT</td>
+                        </tr>
+                    </thead>
+                    <tr>
+                        <td contenteditable="false">A</td>
+                        <td contenteditable="false">10.0%</td>
+                        <td id="taxableTotal" contenteditable="false">$50.00</td>
+                        <td id="vatAnalysis" contenteditable="false">$4.00</td>
+                    </tr>
+                    <tr style="border-top: 1px solid #000;"><td colspan="3" class="label">TOTAL VAT</td><td class="val" id="totalVatAnalysis" contenteditable="false">$4.00</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="total-amount-box">
+            <span class="total-label" contenteditable="false">Total Amount</span>
+            <span class="total-val" id="finalTotal" contenteditable="false">USD 54.00</span>
+        </div>
+
+        <div style="margin-top: 20px; font-size: 10px; color: var(--text-muted); font-style: italic;" contenteditable="false">
+            Note: All charges are in USD. Standard Shipping Charge includes pickup and delivery.
+        </div>
+
+        <!-- SHIPMENT DETAILS PAGE 2 STYLE -->
+        <div class="shipment-details">
+            <div class="section-title">Shipment Details</div>
+            <div class="detail-row">
+                <div class="detail-col" style="flex: 0.8;">
+                    <strong>Air Waybill No.</strong>
+                    <span id="awbNo" class="bold" contenteditable="false">...</span>
+                </div>
+                <div class="detail-col">
+                    <strong>Sender</strong>
+                    <span id="shipper" contenteditable="false">...</span>
+                </div>
+                <div class="detail-col">
+                    <strong>Receiver</strong>
+                    <span id="consignee" contenteditable="false">...</span>
+                </div>
+                <div class="detail-col">
+                    <strong>Origin</strong>
+                    <span id="origin" contenteditable="false">...</span>
+                </div>
+                <div class="detail-col">
+                    <strong>Destination</strong>
+                    <span id="destination" contenteditable="false">...</span>
+                </div>
+            </div>
+            <div class="detail-row" style="background: var(--bg-table);">
+                <div class="detail-col">
+                    <strong>Service</strong>
+                    <span contenteditable="false">Express Delivery</span>
+                </div>
+                <div class="detail-col">
+                    <strong>Weight</strong>
+                    <span id="weightDetail" contenteditable="false">0.5 kg</span>
+                </div>
+                <div class="detail-col">
+                    <strong>Std Charge</strong>
+                    <span id="chargeDetail" contenteditable="false">$45.00</span>
+                </div>
+                <div class="detail-col">
+                    <strong>Extra</strong>
+                    <span id="extraDetail" contenteditable="false">$5.00</span>
+                </div>
+                <div class="detail-col">
+                    <strong>VAT</strong>
+                    <span id="vatDetail" contenteditable="false">$4.00</span>
+                </div>
+                <div class="detail-col">
+                    <strong>Net Charge</strong>
+                    <span id="netDetail" class="bold" contenteditable="false">$54.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAYMENT INFO -->
+        <div class="payment-box">
+            <h3>Invoice Payment Information</h3>
+            <div class="payment-grid">
+                <div class="pay-item">
+                    <strong>Payment Terms</strong>
+                    <p>Due within 30 days. Due Date: <span id="dueDate" contenteditable="false"></span></p>
+                </div>
+                <div class="pay-item">
+                    <strong>Bank Details</strong>
+                    <p contenteditable="false">Bank: TrackFast Global Bank</p>
+                    <p contenteditable="false">Swift: TFGBUS33</p>
+                </div>
+                <div class="pay-item">
+                    <strong>Reference</strong>
+                    <p>Please use <span id="payRef" class="bold" contenteditable="false"></span> as payment reference.</p>
+                </div>
+            </div>
+            <p style="margin-top: 15px; font-size: 10px; color: var(--text-muted);" contenteditable="false">
+                PAYMENT FOR THIS INVOICE WILL BE TAKEN VIA DIRECT DEBIT OR WIRE TRANSFER ON THE 28TH OF THE MONTH.
+            </p>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            <div class="footer-left" contenteditable="false">
+                TrackFast Logistics International Ltd. | Registered in GH / UK
+            </div>
+            <div class="footer-right" contenteditable="false">
+                www.trackfast.logistics | Phone: +44 20 7123 4567
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isEditMode = false;
+
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('btnEdit');
+            const editableElements = document.querySelectorAll('[contenteditable]');
+            
+            if (isEditMode) {
+                btn.textContent = 'Save (Exit Edit)';
+                btn.style.background = '#2563eb';
+                document.body.classList.add('edit-mode');
+                editableElements.forEach(el => el.setAttribute('contenteditable', 'true'));
+            } else {
+                btn.textContent = 'Edit Invoice';
+                btn.style.background = '#64748b';
+                document.body.classList.remove('edit-mode');
+                editableElements.forEach(el => el.setAttribute('contenteditable', 'false'));
+                // Sync calculations if needed (basic version just stays as edited)
+            }
+        }
+
+        async function loadInvoiceData() {
+            const params = new URLSearchParams(window.location.search);
+            const parcelId = params.get('id');
+            if (!parcelId) return;
+
+            try {
+                const res = await fetch(`/api/parcels/${parcelId}`);
+                const parcel = await res.json();
+
+                // Mock dynamic data based on parcel
+                const trackingId = parcel.id;
+                const createdAt = new Date(parcel.createdAt);
+                const dueDate = new Date(createdAt);
+                dueDate.setDate(dueDate.getDate() + 30);
+
+                // Populate Fields
+                document.getElementById('senderNameDisplay').textContent = parcel.sender || "Unknown Sender";
+                document.getElementById('senderAddress').textContent = parcel.origin || "Unknown Origin";
+                document.getElementById('invNumber').textContent = 'TF-' + trackingId;
+                document.getElementById('invDate').textContent = createdAt.toLocaleDateString();
+                document.getElementById('awbNo').textContent = trackingId;
+                document.getElementById('shipper').textContent = parcel.sender || "Unknown Sender";
+                document.getElementById('consignee').textContent = parcel.receiver || "Unknown Receiver";
+                document.getElementById('origin').textContent = parcel.origin || "Unknown Origin";
+                document.getElementById('destination').textContent = parcel.destination || "Unknown Destination";
+                document.getElementById('dueDate').textContent = dueDate.toLocaleDateString();
+                document.getElementById('payRef').textContent = 'TF-' + trackingId;
+
+                // Mock Charges (DHL Style)
+                const mockBase = 85.00;
+                const mockExtra = 12.50;
+                const mockVat = (mockBase + mockExtra) * 0.15;
+                const net = mockBase + mockExtra + mockVat;
+
+                const fmt = (v) => '$' + v.toFixed(2);
+                
+                document.getElementById('stdCharge').textContent = fmt(mockBase);
+                document.getElementById('totalStd').textContent = fmt(mockBase);
+                document.getElementById('extraCharge').textContent = fmt(mockExtra);
+                document.getElementById('totalExtra').textContent = fmt(mockExtra);
+                document.getElementById('vatCharge').textContent = fmt(mockVat);
+                document.getElementById('totalVat').textContent = fmt(mockVat);
+                document.getElementById('netCharge').textContent = fmt(net);
+                document.getElementById('totalNet').textContent = fmt(net);
+                
+                document.getElementById('fuelCharge').textContent = fmt(mockExtra);
+                document.getElementById('totalExtraAnalysis').textContent = fmt(mockExtra);
+                document.getElementById('taxableTotal').textContent = fmt(mockBase + mockExtra);
+                document.getElementById('vatAnalysis').textContent = fmt(mockVat);
+                document.getElementById('totalVatAnalysis').textContent = fmt(mockVat);
+                document.getElementById('finalTotal').textContent = 'USD ' + net.toFixed(2);
+                
+                document.getElementById('chargeDetail').textContent = fmt(mockBase);
+                document.getElementById('extraDetail').textContent = fmt(mockExtra);
+                document.getElementById('vatDetail').textContent = fmt(mockVat);
+                document.getElementById('netDetail').textContent = fmt(net);
+
+            } catch (err) {
+                console.error("Failed to load invoice:", err);
+            }
+        }
+
+        function downloadPDF() {
+            // Ensure we are out of edit mode visual state before capturing
+            const wasEdit = isEditMode;
+            if (wasEdit) toggleEditMode();
+
+            const element = document.getElementById('invoice');
+            const invId = document.getElementById('invNumber').textContent;
+            const opt = {
+                margin:       [10, 10, 10, 10],
+                filename:     'TrackFast_Invoice_' + invId + '.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            html2pdf().set(opt).from(element).save().then(() => {
+                if (wasEdit) toggleEditMode();
+            });
+        }
+
+        loadInvoiceData();
+    </script>
+</body>
+</html>

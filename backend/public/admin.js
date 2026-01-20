@@ -215,6 +215,10 @@ function renderDashboard() {
       <td>${getCurrentLocation(p)}</td>
       <td>${p.state}</td>
       <td class="actions">
+        <button type="button" class="invoice" onclick="handleAction('invoice', '${p.id}')">
+            Invoice
+        </button>
+        
         <button type="button" class="${isPaused ? "resume" : "pause"}" onclick="handleAction('pause', '${p.id}')">
             ${isPaused ? "Resume" : "Pause"}
         </button>
@@ -311,6 +315,10 @@ async function handleAction(action, id) {
     }
     if (action === 'edit') {
         openEditModal(p);
+        return;
+    }
+    if (action === 'invoice') {
+        window.open(`invoice.html?id=${id}`, '_blank');
         return;
     }
     if (action === 'delete') {

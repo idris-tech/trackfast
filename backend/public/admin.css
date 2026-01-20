@@ -25,8 +25,22 @@ body {
   left: 0;
 }
 
-.sidebar h2 {
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 30px;
+  padding: 0 5px;
+}
+
+.sidebar-logo-img {
+  height: 32px;
+  width: auto;
+  filter: drop-shadow(0 0 8px rgba(0, 255, 191, 0.3));
+}
+
+.sidebar h2 {
+  margin: 0;
   color: #00ffbf;
   font-size: 22px;
 }
@@ -177,6 +191,10 @@ button {
 }
 .edit {
   background: #3b82f6;
+  color: #fff;
+}
+.invoice {
+  background: #0f172a;
   color: #fff;
 }
 .delete {

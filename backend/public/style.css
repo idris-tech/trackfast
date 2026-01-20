@@ -34,10 +34,25 @@ body {
 }
 
 .logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   font-size: 22px;
   font-weight: 800;
   letter-spacing: 0.5px;
   color: #00ffbf;
+  text-decoration: none;
+}
+
+.logo-img {
+  height: 32px;
+  width: auto;
+  filter: drop-shadow(0 0 10px rgba(0, 255, 191, 0.4));
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.logo:hover .logo-img {
+  transform: scale(1.15) rotate(-8deg);
 }
 
 .nav-links {
